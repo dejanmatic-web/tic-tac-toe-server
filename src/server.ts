@@ -209,10 +209,11 @@ io.on('connection', (socket: Socket) => {
       });
 
       // Step 9: THEN emit match_started to room (after authenticated)
-      // Small delay to allow client to process authenticated event first
+      // Delay to allow client to process authenticated event and React to re-render
       if (matchStarting) {
         setTimeout(() => {
           const playersArray = Array.from(match.players.values());
+          console.log('📣 Emitting match_started with players:', playersArray.map(p => ({ id: p.id, symbol: p.symbol })));
           io.to(matchId).emit('match_started', {
             matchId,
             players: playersArray.map(p => ({
@@ -222,11 +223,12 @@ io.on('connection', (socket: Socket) => {
             })),
             currentPlayer: 'X',
           });
-        }, 100);
+        }, 250);
       }
 
-      // Step 10: Send current game state to newly joined player if match is in progress
-      if (match.status === 'playing') {
+      // Step 10: Send current game state to newly joined player if match is already in progress
+      // (Only for reconnections - not for initial match start, which is handled by match_started)
+      if (match.status === 'playing' && !matchStarting) {
         socket.emit('game_state', {
           board: match.board,
           currentPlayer: match.currentPlayer,
