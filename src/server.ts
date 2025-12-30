@@ -46,6 +46,11 @@ const io = new Server(httpServer, {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
   },
+  // Increase timeouts for stability
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // Allow both websocket and polling for better compatibility
+  transports: ['websocket', 'polling'],
 });
 
 // Health check endpoint
@@ -155,7 +160,7 @@ io.on('connection', (socket: Socket) => {
       const playerId = String(playerIdentity.id);
       let player = match.players.get(playerId);
       let isReconnect = false;
-      
+
       if (player) {
         // Player reconnecting - update socket but keep symbol
         console.log(`🔄 Player ${playerId} reconnecting (existing symbol: ${player.symbol})`);
@@ -171,10 +176,10 @@ io.on('connection', (socket: Socket) => {
         };
         match.players.set(player.id, player);
       }
-      
+
       currentPlayer = player;
       currentMatchId = matchId;
-      
+
       if (match.players.size === 1 && match.status === 'waiting' && !match.startedAt) {
         try {
           await gameSDK.reportMatchStart(matchId);
