@@ -151,20 +151,31 @@ io.on('connection', (socket: Socket) => {
         activeMatches.set(matchId, match);
       }
 
-      // Step 3: Create game player (ensure ID is string for consistency)
-      const player: GamePlayer = {
-        id: String(playerIdentity.id),
-        username: playerIdentity.username,
-        socket: socket,
-        symbol: null, // Will be assigned when match starts
-      };
-
-      match.players.set(player.id, player);
+      // Step 3: Get or create game player (preserve symbol if reconnecting)
+      const playerId = String(playerIdentity.id);
+      let player = match.players.get(playerId);
+      let isReconnect = false;
+      
+      if (player) {
+        // Player reconnecting - update socket but keep symbol
+        console.log(`🔄 Player ${playerId} reconnecting (existing symbol: ${player.symbol})`);
+        player.socket = socket;
+        isReconnect = true;
+      } else {
+        // New player joining
+        player = {
+          id: playerId,
+          username: playerIdentity.username,
+          socket: socket,
+          symbol: null, // Will be assigned when match starts
+        };
+        match.players.set(player.id, player);
+      }
+      
       currentPlayer = player;
       currentMatchId = matchId;
-
-      // Step 4: Report match start if this is the first player
-      if (match.players.size === 1 && match.status === 'waiting') {
+      
+      if (match.players.size === 1 && match.status === 'waiting' && !match.startedAt) {
         try {
           await gameSDK.reportMatchStart(matchId);
           match.startedAt = new Date();
@@ -176,20 +187,22 @@ io.on('connection', (socket: Socket) => {
         }
       }
 
-      // Step 5: Report player join
-      try {
-        await gameSDK.reportPlayerJoin(matchId, player.id);
-        console.log(`✅ Player ${player.id} joined match ${matchId}`);
-      } catch (error: any) {
-        console.error('❌ Failed to report player join:', error.message);
+      // Step 5: Report player join (only for new players, not reconnects)
+      if (!isReconnect) {
+        try {
+          await gameSDK.reportPlayerJoin(matchId, player.id);
+          console.log(`✅ Player ${player.id} joined match ${matchId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to report player join:', error.message);
+        }
       }
 
       // Step 6: Join match room FIRST (so player receives room events)
       socket.join(matchId);
 
-      // Step 7: Check if we have 2 players - assign symbols
+      // Step 7: Check if we have 2 players - assign symbols (only if not already playing)
       let matchStarting = false;
-      if (match.players.size === 2 && match.status === 'waiting') {
+      if (match.players.size === 2 && match.status === 'waiting' && !isReconnect) {
         const playersArray = Array.from(match.players.values());
         playersArray[0].symbol = 'X';
         playersArray[1].symbol = 'O';
@@ -218,7 +231,7 @@ io.on('connection', (socket: Socket) => {
             username: p.username,
             symbol: p.symbol,
           }));
-          
+
           // Emit to each player individually with their specific symbol
           playersArray.forEach(p => {
             console.log(`📣 Emitting match_started to ${p.username} (${p.id}) with yourSymbol: ${p.symbol}`);
