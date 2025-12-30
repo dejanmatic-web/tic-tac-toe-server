@@ -1,4 +1,4 @@
-# Tic-Tac-Toe Game Development - Iterations Guide
+# Tic-Tac-Toe Game Server Development - Iterations Guide
 
 This guide breaks down the Tic-Tac-Toe game server development into step-by-step iterations that can be completed in Cursor. Each iteration builds upon the previous one.
 
@@ -16,29 +16,29 @@ This guide breaks down the Tic-Tac-Toe game server development into step-by-step
    - Create project structure
 
 2. **[Iteration 2: SDK Integration & Express Server](./ITERATION_02_SDK_INTEGRATION.md)**
+   - Create TypeScript types
    - Initialize GamerStake SDK
    - Set up Express server
-   - Configure Socket.IO
+   - Configure Socket.IO with proper timeouts
    - Create health endpoint
-   - Define TypeScript types
 
 3. **[Iteration 3: Socket.io Authentication Handler](./ITERATION_03_SOCKET_AUTHENTICATION.md)**
    - Implement Socket.io connection handler
-   - Add player authentication
-   - Handle match creation
-   - Manage player joins
-   - Handle disconnections
+   - Add player authentication with SDK
+   - Handle player reconnection (preserve symbols)
+   - Manage match creation and player joins
+   - Handle disconnections with 30-second grace period
 
 4. **[Iteration 4: Game Logic Implementation](./ITERATION_04_GAME_LOGIC.md)**
-   - Implement move validation
-   - Add winner detection
+   - Implement move validation (bounds, turn, cell)
+   - Add winner detection (8 win conditions)
    - Handle draw conditions
-   - Report match results
-   - Manage game state
+   - Report match results to SDK
+   - Manage game state and cleanup
 
 5. **[Iteration 5: Deployment Preparation](./ITERATION_05_DEPLOYMENT.md)**
    - Prepare build configuration
-   - Create deployment files
+   - Create Railway deployment files
    - Test production build
    - Document deployment process
 
@@ -78,6 +78,43 @@ These steps should be completed separately in the admin panel.
 
 ---
 
+## Key Features Implemented
+
+| Feature | Description |
+|---------|-------------|
+| SDK Integration | Token validation, match reporting |
+| Real-time Gameplay | Socket.io for instant updates |
+| Reconnection Support | 30-second grace period, symbol preservation |
+| Move Validation | Turn checking, bounds validation |
+| Win/Draw Detection | 8 win conditions, full board check |
+| Match Cleanup | Automatic cleanup after 1 minute |
+
+---
+
+## Socket.io Events Summary
+
+### Client → Server
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `authenticate` | `{ token, matchId }` | Authenticate player |
+| `make_move` | `{ row, col }` | Make a move |
+
+### Server → Client
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `authenticated` | `{ playerId, username, matchId, symbol, matchStatus }` | Auth successful |
+| `auth_error` | `{ message }` | Auth failed |
+| `match_started` | `{ matchId, players, currentPlayer, yourSymbol }` | Game begins |
+| `game_state` | `{ board, currentPlayer, players, yourSymbol }` | Sync state |
+| `move_made` | `{ row, col, symbol, currentPlayer, board }` | Move made |
+| `game_finished` | `{ winner, board }` | Game ended |
+| `player_disconnected` | `{ playerId, temporary }` | Player left |
+| `error` | `{ message }` | General error |
+
+---
+
 ## Testing
 
 After completing all iterations, you can test locally:
@@ -108,11 +145,12 @@ If you encounter issues:
 ## Next Steps After Completion
 
 1. **Deploy to Railway** (follow Iteration 5)
-2. **Configure Server URL** in admin panel
-3. **Test End-to-End** with the platform
-4. **Monitor Logs** for any issues
+2. **Deploy Frontend** (follow client iterations)
+3. **Configure Server URL** in admin panel
+4. **Update CORS** with frontend URL
+5. **Test End-to-End** with the platform
+6. **Monitor Logs** for any issues
 
 ---
 
 **Happy Coding!** 🎮
-

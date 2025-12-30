@@ -6,7 +6,7 @@ This iteration covers implementing the game move logic, winner detection, and ma
 
 ## Step 1: Add Helper Functions
 
-Add these helper functions to `src/server.ts` before the "Start Server" section:
+Add these helper functions to `src/server.ts` before the Socket.IO Connection Handler section:
 
 ```typescript
 // ============================================================================
@@ -80,14 +80,24 @@ Add the `make_move` event handler inside the `io.on('connection')` block, after 
       return;
     }
 
-    // Validate move
-    if (match.board[data.row][data.col] !== '') {
+    // Ensure row and col are numbers (client might send strings)
+    const row = Number(data.row);
+    const col = Number(data.col);
+
+    // Validate move bounds
+    if (row < 0 || row > 2 || col < 0 || col > 2) {
+      socket.emit('error', { message: 'Invalid move coordinates' });
+      return;
+    }
+
+    // Validate cell is empty
+    if (match.board[row][col] !== '') {
       socket.emit('error', { message: 'Cell already occupied' });
       return;
     }
 
     // Make move
-    match.board[data.row][data.col] = currentPlayer.symbol!;
+    match.board[row][col] = currentPlayer.symbol!;
 
     // Check for winner
     const winner = checkWinner(match.board);
@@ -96,7 +106,7 @@ Add the `make_move` event handler inside the `io.on('connection')` block, after 
       match.winner = winner;
       match.currentPlayer = winner as 'X' | 'O';
 
-      // Report match result
+      // Report match result to platform
       try {
         const winnerPlayer = Array.from(match.players.values()).find(
           p => p.symbol === winner
@@ -108,12 +118,12 @@ Add the `make_move` event handler inside the `io.on('connection')` block, after 
         await gameSDK.reportMatchResult(currentMatchId, {
           players: [
             {
-              id: winnerPlayer!.id,
+              id: parseInt(winnerPlayer!.id, 10),  // SDK expects number
               score: 1,
               isWinner: true,
             },
             {
-              id: loserPlayer!.id,
+              id: parseInt(loserPlayer!.id, 10),   // SDK expects number
               score: 0,
               isWinner: false,
             },
@@ -131,43 +141,52 @@ Add the `make_move` event handler inside the `io.on('connection')` block, after 
         board: match.board,
       });
 
-      // Clean up after delay
+      // Clean up after delay (keep match data for 1 minute for any late requests)
+      const matchIdToCleanup = currentMatchId;
       setTimeout(() => {
-        activeMatches.delete(currentMatchId);
-      }, 60000); // Keep match data for 1 minute
+        if (matchIdToCleanup) {
+          activeMatches.delete(matchIdToCleanup);
+        }
+      }, 60000);
+
     } else if (isBoardFull(match.board)) {
-      // Draw
+      // Draw - no winner but board is full
       match.status = 'finished';
 
       try {
         const playersArray = Array.from(match.players.values());
         await gameSDK.reportMatchResult(currentMatchId, {
           players: playersArray.map(p => ({
-            id: p.id,
+            id: parseInt(p.id, 10),  // SDK expects number
             score: 0,
             isWinner: false,
           })),
         });
+        console.log(`✅ Match ${currentMatchId} finished as a draw`);
       } catch (error: any) {
         console.error('❌ Failed to report match result:', error.message);
       }
 
       io.to(currentMatchId).emit('game_finished', {
-        winner: null,
+        winner: null,  // null indicates draw
         board: match.board,
       });
 
+      const matchIdToCleanup = currentMatchId;
       setTimeout(() => {
-        activeMatches.delete(currentMatchId);
+        if (matchIdToCleanup) {
+          activeMatches.delete(matchIdToCleanup);
+        }
       }, 60000);
+
     } else {
-      // Switch turn
+      // Game continues - switch turn
       match.currentPlayer = match.currentPlayer === 'X' ? 'O' : 'X';
 
-      // Broadcast move to all players
+      // Broadcast move to all players in the match room
       io.to(currentMatchId).emit('move_made', {
-        row: data.row,
-        col: data.col,
+        row: row,
+        col: col,
         symbol: currentPlayer.symbol,
         currentPlayer: match.currentPlayer,
         board: match.board,
@@ -182,46 +201,115 @@ Add the `make_move` event handler inside the `io.on('connection')` block, after 
 
 Your `src/server.ts` should now have this structure:
 
-1. Imports
-2. Configuration
-3. SDK Initialization
-4. Express & Socket.IO Setup
-5. Health Check Endpoint
-6. Game State Management
-7. Socket.IO Connection Handler
-   - `authenticate` event
-   - `make_move` event
-   - `disconnect` event
-8. Helper Functions
-   - `createMatch`
-   - `checkWinner`
-   - `isBoardFull`
-9. Start Server
+```typescript
+// 1. Imports
+import express from 'express';
+import { createServer } from 'http';
+import { Server, Socket } from 'socket.io';
+import { GameSDK } from '@gamerstake/game-platform-sdk';
+import dotenv from 'dotenv';
+import { GamePlayer, GameMatch } from './game/types';
+
+dotenv.config();
+
+// 2. Configuration
+const PORT = process.env.PORT || 3000;
+// ... other config
+
+// 3. SDK Initialization
+const gameSDK = new GameSDK({ ... });
+
+// 4. Express & Socket.IO Setup
+const app = express();
+// ... health endpoint
+
+// 5. Game State Management
+const activeMatches = new Map<string, GameMatch>();
+function createMatch(matchId: string): GameMatch { ... }
+
+// 6. Helper Functions
+function checkWinner(board: string[][]): string | null { ... }
+function isBoardFull(board: string[][]): boolean { ... }
+
+// 7. Socket.IO Connection Handler
+io.on('connection', (socket: Socket) => {
+  // authenticate event handler
+  // make_move event handler
+  // disconnect event handler
+});
+
+// 8. Start Server
+httpServer.listen(PORT, () => { ... });
+```
+
+---
+
+## Move Validation Summary
+
+| Validation | Error Message |
+|------------|---------------|
+| Not authenticated | "Not authenticated" |
+| Match not found or finished | "Match not in playing state" |
+| Not player's turn | "Not your turn" |
+| Invalid coordinates (< 0 or > 2) | "Invalid move coordinates" |
+| Cell already occupied | "Cell already occupied" |
+
+---
+
+## Win Conditions
+
+The `checkWinner` function checks all 8 possible winning combinations:
+
+```
+Rows:           Columns:        Diagonals:
+[X][X][X]       [X][ ][ ]       [X][ ][ ]    [ ][ ][X]
+[ ][ ][ ]       [X][ ][ ]       [ ][X][ ]    [ ][X][ ]
+[ ][ ][ ]       [X][ ][ ]       [ ][ ][X]    [X][ ][ ]
+```
+
+---
+
+## SDK Result Reporting
+
+When reporting results to the platform:
+
+```typescript
+// Winner/Loser
+await gameSDK.reportMatchResult(matchId, {
+  players: [
+    { id: winnerId, score: 1, isWinner: true },
+    { id: loserId, score: 0, isWinner: false },
+  ],
+});
+
+// Draw
+await gameSDK.reportMatchResult(matchId, {
+  players: [
+    { id: player1Id, score: 0, isWinner: false },
+    { id: player2Id, score: 0, isWinner: false },
+  ],
+});
+```
+
+**Important:** Player IDs must be converted to numbers using `parseInt(id, 10)` as the SDK expects numeric IDs.
 
 ---
 
 ## Verification
 
 After completing this iteration, you should have:
-- ✅ Move validation logic
+- ✅ Move validation logic (bounds, turn, cell occupancy)
 - ✅ Winner detection (rows, columns, diagonals)
-- ✅ Draw detection
+- ✅ Draw detection (board full, no winner)
 - ✅ Turn switching
 - ✅ Match result reporting to SDK
 - ✅ Game finished notifications
+- ✅ Match cleanup after 1 minute
 
 **Socket.io Events Implemented:**
-- `make_move` (client → server)
-- `move_made` (server → client)
-- `game_finished` (server → client)
-- `error` (server → client)
-
-**Game Logic Features:**
-- ✅ 3x3 board validation
-- ✅ Turn-based gameplay
-- ✅ Win condition checking (8 possible wins)
-- ✅ Draw detection
-- ✅ Match cleanup after completion
+- `make_move` (client → server): `{ row, col }`
+- `move_made` (server → client): `{ row, col, symbol, currentPlayer, board }`
+- `game_finished` (server → client): `{ winner, board }`
+- `error` (server → client): `{ message }`
 
 **Next:** Proceed to [Iteration 5: Deployment Preparation](./ITERATION_05_DEPLOYMENT.md)
-

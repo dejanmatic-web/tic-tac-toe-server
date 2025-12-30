@@ -27,10 +27,10 @@ npm install express socket.io dotenv
 # GamerStake SDK
 npm install @gamerstake/game-platform-sdk
 
-# TypeScript (optional but recommended)
-npm install -D typescript @types/node @types/express @types/socket.io ts-node nodemon
+# TypeScript and development tools
+npm install -D typescript @types/node @types/express ts-node nodemon
 
-# Development tools
+# ESLint (optional but recommended)
 npm install -D @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint
 ```
 
@@ -43,13 +43,11 @@ Create the following directory structure:
 ```
 tic-tac-toe-server/
 ├── src/
-│   ├── server.ts          # Main server file
-│   ├── game/
-│   │   ├── TicTacToeGame.ts    # Game logic
-│   │   └── types.ts            # Type definitions
-│   └── socket/
-│       └── handlers.ts    # Socket.io event handlers
+│   ├── server.ts          # Main server file (all logic here)
+│   └── game/
+│       └── types.ts       # Type definitions
 ├── .env.example
+├── .env
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
@@ -59,7 +57,8 @@ tic-tac-toe-server/
 **In Cursor:**
 1. Create the `src` directory
 2. Create the `src/game` directory
-3. Create the `src/socket` directory
+
+**Note:** All server logic is kept in a single `server.ts` file for simplicity. You can split it into separate modules if the codebase grows.
 
 ---
 
@@ -103,7 +102,7 @@ DEBUG=true
 PORT=3000
 NODE_ENV=development
 
-# CORS (for production, set to your domain)
+# CORS (for production, set to your frontend domain)
 CORS_ORIGIN=*
 ```
 
@@ -164,4 +163,3 @@ After completing this iteration, you should have:
 - ✅ Scripts configured in `package.json`
 
 **Next:** Proceed to [Iteration 2: SDK Integration & Express Server](./ITERATION_02_SDK_INTEGRATION.md)
-

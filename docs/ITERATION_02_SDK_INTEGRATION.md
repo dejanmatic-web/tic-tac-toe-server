@@ -4,7 +4,39 @@ This iteration covers initializing the GamerStake SDK, setting up Express server
 
 ---
 
-## Step 1: Create Main Server File
+## Step 1: Create Type Definitions
+
+Create `src/game/types.ts`:
+
+```typescript
+import { Socket } from 'socket.io';
+
+export interface GamePlayer {
+  id: string;
+  username: string;
+  socket: Socket;
+  symbol: 'X' | 'O' | null;
+}
+
+export interface GameMatch {
+  id: string;
+  players: Map<string, GamePlayer>;
+  board: string[][];
+  currentPlayer: 'X' | 'O';
+  status: 'waiting' | 'playing' | 'finished';
+  winner: string | null;
+  startedAt?: Date;
+}
+```
+
+**Key Points:**
+- `GamePlayer` stores player data including their socket connection
+- `GameMatch` uses a Map for players (allows easy lookup by ID)
+- `startedAt` tracks when the match was reported to the platform
+
+---
+
+## Step 2: Create Main Server File
 
 Create `src/server.ts` with basic imports and configuration:
 
@@ -14,6 +46,7 @@ import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { GameSDK } from '@gamerstake/game-platform-sdk';
 import dotenv from 'dotenv';
+import { GamePlayer, GameMatch } from './game/types';
 
 dotenv.config();
 
@@ -56,6 +89,11 @@ const io = new Server(httpServer, {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
   },
+  // Increase timeouts for stability
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // Allow both websocket and polling for better compatibility
+  transports: ['websocket', 'polling'],
 });
 
 // Health check endpoint
@@ -68,7 +106,7 @@ app.get('/health', (req, res) => {
 });
 
 // ============================================================================
-// Start Server
+// Start Server (placeholder - will add Socket.IO handlers later)
 // ============================================================================
 
 httpServer.listen(PORT, () => {
@@ -80,34 +118,28 @@ httpServer.listen(PORT, () => {
 
 ---
 
-## Step 2: Create Type Definitions
-
-Create `src/game/types.ts`:
+## Step 3: Socket.IO Configuration Explained
 
 ```typescript
-import { Socket } from 'socket.io';
-
-export interface GamePlayer {
-  id: string;
-  username: string;
-  socket: Socket;
-  symbol: 'X' | 'O' | null;
-}
-
-export interface GameMatch {
-  id: string;
-  players: Map<string, GamePlayer>;
-  board: string[][];
-  currentPlayer: 'X' | 'O';
-  status: 'waiting' | 'playing' | 'finished';
-  winner: string | null;
-  startedAt?: Date;
-}
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || '*',  // Allow frontend connections
+    credentials: true,                        // Allow cookies/auth
+  },
+  pingTimeout: 60000,     // Wait 60s before considering connection dead
+  pingInterval: 25000,    // Send heartbeat every 25s
+  transports: ['websocket', 'polling'],  // WebSocket first, polling fallback
+});
 ```
+
+**Why these settings?**
+- `pingTimeout: 60000` - Prevents premature disconnections on slow networks
+- `pingInterval: 25000` - Keeps connections alive through firewalls/proxies
+- `transports` - WebSocket is faster, but polling works through restrictive firewalls
 
 ---
 
-## Step 3: Test the Server
+## Step 4: Test the Server
 
 Run the development server:
 
@@ -145,9 +177,8 @@ Expected response:
 After completing this iteration, you should have:
 - ✅ SDK initialized successfully
 - ✅ Express server running
-- ✅ Socket.IO server configured
+- ✅ Socket.IO server configured with proper timeouts
 - ✅ Health endpoint working
 - ✅ Type definitions created
 
 **Next:** Proceed to [Iteration 3: Socket.io Authentication Handler](./ITERATION_03_SOCKET_AUTHENTICATION.md)
-

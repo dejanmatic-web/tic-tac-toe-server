@@ -4,9 +4,9 @@ This iteration covers preparing the project for deployment to Railway, including
 
 ---
 
-## Step 1: Create Railway Configuration (Optional)
+## Step 1: Create Railway Configuration
 
-Create `railway.json` in the root directory (optional, Railway can auto-detect):
+Create `railway.json` in the root directory:
 
 ```json
 {
@@ -25,7 +25,17 @@ Create `railway.json` in the root directory (optional, Railway can auto-detect):
 
 ---
 
-## Step 2: Create README.md
+## Step 2: Create Procfile
+
+Create `Procfile` in the root directory:
+
+```
+web: npm start
+```
+
+---
+
+## Step 3: Create README.md
 
 Create `README.md` in the root directory:
 
@@ -39,6 +49,7 @@ A multiplayer Tic-Tac-Toe game server built with Node.js, TypeScript, Socket.io,
 - Real-time multiplayer gameplay via Socket.io
 - Player authentication via GamerStake SDK
 - Match management and result reporting
+- Player reconnection support (30-second grace period)
 - Automatic match cleanup
 
 ## Prerequisites
@@ -96,18 +107,22 @@ curl http://localhost:3000/health
 ## Socket.io Events
 
 ### Client → Server
-- `authenticate`: Authenticate with JWT token and match ID
-- `make_move`: Make a move (row, col)
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `authenticate` | `{ token, matchId }` | Authenticate with JWT token |
+| `make_move` | `{ row, col }` | Make a move (0-2 for each) |
 
 ### Server → Client
-- `authenticated`: Authentication successful
-- `auth_error`: Authentication failed
-- `match_started`: Match has started
-- `game_state`: Current game state
-- `move_made`: Move was made
-- `game_finished`: Game ended
-- `player_disconnected`: Other player disconnected
-- `error`: General error
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `authenticated` | `{ playerId, username, matchId, symbol, matchStatus }` | Auth successful |
+| `auth_error` | `{ message }` | Auth failed |
+| `match_started` | `{ matchId, players, currentPlayer, yourSymbol }` | Game begins |
+| `game_state` | `{ board, currentPlayer, players, yourSymbol }` | Current state (reconnect) |
+| `move_made` | `{ row, col, symbol, currentPlayer, board }` | Move was made |
+| `game_finished` | `{ winner, board }` | Game ended |
+| `player_disconnected` | `{ playerId, temporary }` | Player left |
+| `error` | `{ message }` | General error |
 
 ## Deployment
 
@@ -119,12 +134,14 @@ This project is configured for deployment on Railway.
 
 ### Required Environment Variables
 
-- `GAMERSTAKE_API_KEY`: Your API key from admin panel
-- `ENVIRONMENT`: `production` or `staging`
-- `DEBUG`: `false` (must be false in production)
-- `PORT`: Railway sets this automatically
-- `NODE_ENV`: `production`
-- `CORS_ORIGIN`: Your GamerStake platform domain
+| Variable | Description |
+|----------|-------------|
+| `GAMERSTAKE_API_KEY` | Your API key from admin panel |
+| `ENVIRONMENT` | `production` or `staging` |
+| `DEBUG` | `false` (must be false in production) |
+| `CORS_ORIGIN` | Your frontend domain |
+| `PORT` | Railway sets this automatically |
+| `NODE_ENV` | `production` |
 
 ## License
 
@@ -133,7 +150,7 @@ MIT
 
 ---
 
-## Step 3: Verify Build Process
+## Step 4: Verify Build Process
 
 Test that the build process works:
 
@@ -145,6 +162,7 @@ You should see:
 - TypeScript compilation completes without errors
 - `dist/` directory is created
 - `dist/server.js` exists
+- `dist/game/types.js` exists
 
 Test the production build:
 
@@ -156,7 +174,7 @@ The server should start successfully.
 
 ---
 
-## Step 4: Update .gitignore
+## Step 5: Update .gitignore
 
 Ensure `.gitignore` includes all necessary entries:
 
@@ -172,54 +190,29 @@ dist/
 
 ---
 
-## Step 5: Create Procfile (Optional)
+## Step 6: Environment Variables Summary
 
-Create `Procfile` in the root directory (for Railway or Heroku):
+### Development (.env)
 
-```
-web: npm start
-```
-
----
-
-## Step 6: Verify Environment Variables
-
-Before deploying, ensure you have all required environment variables documented:
-
-**Development (.env):**
-- `GAMERSTAKE_API_KEY`
-- `ENVIRONMENT=development`
-- `DEBUG=true`
-- `PORT=3000`
-- `NODE_ENV=development`
-- `CORS_ORIGIN=*`
-
-**Production (Railway):**
-- `GAMERSTAKE_API_KEY` (same as development)
-- `ENVIRONMENT=production`
-- `DEBUG=false`
-- `PORT` (set automatically by Railway)
-- `NODE_ENV=production`
-- `CORS_ORIGIN=https://your-gamerstake-domain.com`
-
----
-
-## Step 7: Test Health Endpoint
-
-Before deploying, verify the health endpoint works:
-
-```bash
-curl http://localhost:3000/health
+```env
+GAMERSTAKE_API_KEY=your-dev-api-key
+ENVIRONMENT=development
+DEBUG=true
+PORT=3000
+NODE_ENV=development
+CORS_ORIGIN=*
 ```
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "sdk": true,
-  "environment": "development"
-}
-```
+### Production (Railway Dashboard)
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `GAMERSTAKE_API_KEY` | `your-prod-api-key` | From admin panel |
+| `ENVIRONMENT` | `production` | Must match platform |
+| `DEBUG` | `false` | No debug in prod |
+| `CORS_ORIGIN` | `https://your-frontend.up.railway.app` | Frontend URL |
+| `PORT` | (auto-set) | Railway sets this |
+| `NODE_ENV` | `production` | Node environment |
 
 ---
 
@@ -240,75 +233,114 @@ Before deploying to Railway:
 
 ## Railway Deployment Steps
 
-1. **Push to GitHub**: Ensure your code is pushed to a GitHub repository
+### 1. Push to GitHub
 
-2. **Create Railway Project**:
-   - Go to [railway.app](https://railway.app)
-   - Click "New Project"
-   - Select "Deploy from GitHub repo"
-   - Connect your repository
+```bash
+git add .
+git commit -m "Prepare for deployment"
+git push origin main
+```
 
-3. **Configure Build**:
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm start`
+### 2. Create Railway Project
 
-4. **Set Environment Variables**:
-   - Add all required environment variables in Railway dashboard
-   - Use production values (ENVIRONMENT=production, DEBUG=false)
+1. Go to [railway.app](https://railway.app)
+2. Click "New Project"
+3. Select "Deploy from GitHub repo"
+4. Connect your repository
 
-5. **Deploy**:
-   - Railway will automatically deploy on push
-   - Check deployment logs for any errors
+### 3. Configure Build
 
-6. **Verify Deployment**:
-   - Visit: `https://your-railway-url.railway.app/health`
-   - Should return: `{"status":"ok","sdk":true,"environment":"production"}`
+Railway should auto-detect from `package.json`:
+- **Build Command:** `npm install && npm run build`
+- **Start Command:** `npm start`
 
-7. **Update Admin Panel**:
-   - Navigate to admin panel → Game Management
-   - Edit your game
-   - Set Server URL to your Railway URL
-   - Save changes
+### 4. Set Environment Variables
+
+In Railway Dashboard → Variables, add:
+- `GAMERSTAKE_API_KEY`
+- `ENVIRONMENT=production`
+- `DEBUG=false`
+- `CORS_ORIGIN` (set after frontend is deployed)
+
+### 5. Deploy
+
+Railway will automatically deploy on push.
+
+### 6. Get Backend URL
+
+After deployment:
+```
+https://tic-tac-toe-server-production.up.railway.app
+```
+
+### 7. Verify Deployment
+
+```bash
+curl https://your-railway-url.up.railway.app/health
+```
+
+Should return:
+```json
+{
+  "status": "ok",
+  "sdk": true,
+  "environment": "production"
+}
+```
 
 ---
 
-## Verification
+## Post-Deployment
 
-After completing this iteration, you should have:
-- ✅ Build process working
-- ✅ Production build tested
-- ✅ README.md created
-- ✅ Environment variables documented
-- ✅ Deployment configuration ready
-- ✅ Health endpoint verified
+After deploying:
 
-**Next:** Your game server is ready for deployment! Follow the Railway deployment steps above to deploy your game.
+1. **Deploy Frontend** - Follow frontend iteration docs
+2. **Update CORS** - Set `CORS_ORIGIN` to frontend URL
+3. **Update Admin Panel** - Set game server URL to frontend URL
+4. **Test End-to-End** - Create test match and play through
 
 ---
 
-## Troubleshooting Deployment
+## Troubleshooting
 
 ### Build Fails
 - Check Railway build logs
-- Verify all dependencies are in `package.json`
-- Ensure TypeScript compiles without errors
-
-### Runtime Errors
-- Check Railway runtime logs
-- Verify environment variables are set correctly
-- Ensure `dist/` folder exists after build
+- Verify all dependencies in `package.json`
+- Ensure TypeScript compiles locally first
 
 ### SDK Initialization Fails
-- Verify `GAMERSTAKE_API_KEY` is set correctly
-- Check API key matches the game's API key in admin panel
-- Ensure `ENVIRONMENT` matches your platform environment
+- Verify `GAMERSTAKE_API_KEY` is correct
+- Check `ENVIRONMENT` matches platform
+- Review Railway logs for details
 
 ### Health Endpoint Returns Error
 - Check server logs
 - Verify SDK initialization
 - Ensure all environment variables are set
 
+### Socket Connection Fails (CORS)
+- Verify `CORS_ORIGIN` matches frontend URL exactly
+- Check for trailing slashes
+- Ensure frontend is using correct backend URL
+
 ---
 
-**Congratulations!** Your Tic-Tac-Toe game server is now ready for deployment! 🎮
+## Files Required for Deployment
 
+```
+tic-tac-toe-server/
+├── railway.json      ✅ Railway configuration
+├── Procfile          ✅ Process file
+├── package.json      ✅ Dependencies and scripts
+├── tsconfig.json     ✅ TypeScript config
+├── .gitignore        ✅ Git ignore file
+├── README.md         ✅ Documentation
+└── src/
+    ├── server.ts     ✅ Main server
+    └── game/
+        └── types.ts  ✅ Type definitions
+```
+
+---
+
+**Congratulations!** Your Tic-Tac-Toe game server is ready for deployment! 🎮
