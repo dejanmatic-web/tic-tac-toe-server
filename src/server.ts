@@ -255,6 +255,7 @@ io.on('connection', (socket: Socket) => {
       // Step 10: Send current game state to newly joined player if match is already in progress
       // (Only for reconnections - not for initial match start, which is handled by match_started)
       if (match.status === 'playing' && !matchStarting) {
+        console.log(`📤 Sending game_state to reconnecting player ${player.id} with yourSymbol: ${player.symbol}`);
         socket.emit('game_state', {
           board: match.board,
           currentPlayer: match.currentPlayer,
@@ -263,6 +264,7 @@ io.on('connection', (socket: Socket) => {
             username: p.username,
             symbol: p.symbol,
           })),
+          yourSymbol: player.symbol, // Include for reconnecting players
         });
       }
 
@@ -433,7 +435,7 @@ io.on('connection', (socket: Socket) => {
         // Only clean up match after a timeout if player doesn't reconnect
         const disconnectMatchId = currentMatchId;
         const disconnectPlayerId = currentPlayer.id;
-        
+
         setTimeout(() => {
           const matchCheck = activeMatches.get(disconnectMatchId!);
           if (matchCheck) {
