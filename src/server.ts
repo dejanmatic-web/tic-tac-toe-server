@@ -184,7 +184,10 @@ io.on('connection', (socket: Socket) => {
         console.error('❌ Failed to report player join:', error.message);
       }
 
-      // Step 6: Assign symbols and start game if we have 2 players
+      // Step 6: Join match room FIRST (so player receives room events)
+      socket.join(matchId);
+
+      // Step 7: Assign symbols and start game if we have 2 players
       if (match.players.size === 2 && match.status === 'waiting') {
         const playersArray = Array.from(match.players.values());
         playersArray[0].symbol = 'X';
@@ -192,7 +195,7 @@ io.on('connection', (socket: Socket) => {
         match.currentPlayer = 'X';
         match.status = 'playing';
 
-        // Notify both players
+        // Notify both players (they're both in the room now)
         io.to(matchId).emit('match_started', {
           matchId,
           players: playersArray.map(p => ({
@@ -204,7 +207,7 @@ io.on('connection', (socket: Socket) => {
         });
       }
 
-      // Step 7: Notify player of successful authentication
+      // Step 8: Notify player of successful authentication
       socket.emit('authenticated', {
         playerId: player.id,
         username: player.username,
@@ -213,10 +216,7 @@ io.on('connection', (socket: Socket) => {
         matchStatus: match.status,
       });
 
-      // Step 8: Join match room
-      socket.join(matchId);
-
-      // Step 9: Send current game state if match is in progress
+      // Step 9: Send current game state to newly joined player if match is in progress
       if (match.status === 'playing') {
         socket.emit('game_state', {
           board: match.board,
