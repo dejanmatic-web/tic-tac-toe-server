@@ -208,20 +208,26 @@ io.on('connection', (socket: Socket) => {
         matchStatus: match.status,
       });
 
-      // Step 9: THEN emit match_started to room (after authenticated)
-      // Delay to allow client to process authenticated event and React to re-render
+      // Step 9: THEN emit match_started to each player individually
+      // Send each player their own symbol directly to avoid ID matching issues
       if (matchStarting) {
         setTimeout(() => {
           const playersArray = Array.from(match.players.values());
-          console.log('📣 Emitting match_started with players:', playersArray.map(p => ({ id: p.id, symbol: p.symbol })));
-          io.to(matchId).emit('match_started', {
-            matchId,
-            players: playersArray.map(p => ({
-              id: p.id,
-              username: p.username,
-              symbol: p.symbol,
-            })),
-            currentPlayer: 'X',
+          const playersData = playersArray.map(p => ({
+            id: p.id,
+            username: p.username,
+            symbol: p.symbol,
+          }));
+          
+          // Emit to each player individually with their specific symbol
+          playersArray.forEach(p => {
+            console.log(`📣 Emitting match_started to ${p.username} (${p.id}) with yourSymbol: ${p.symbol}`);
+            p.socket.emit('match_started', {
+              matchId,
+              players: playersData,
+              currentPlayer: 'X',
+              yourSymbol: p.symbol, // Direct symbol assignment - no ID matching needed
+            });
           });
         }, 250);
       }
