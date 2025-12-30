@@ -151,9 +151,9 @@ io.on('connection', (socket: Socket) => {
         activeMatches.set(matchId, match);
       }
 
-      // Step 3: Create game player
+      // Step 3: Create game player (ensure ID is string for consistency)
       const player: GamePlayer = {
-        id: playerIdentity.id,
+        id: String(playerIdentity.id),
         username: playerIdentity.username,
         socket: socket,
         symbol: null, // Will be assigned when match starts
