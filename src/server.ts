@@ -414,23 +414,45 @@ io.on('connection', (socket: Socket) => {
     if (currentMatchId && currentPlayer) {
       const match = activeMatches.get(currentMatchId);
       if (match) {
-        match.players.delete(currentPlayer.id);
-
-        // Report match error if game was in progress
-        if (match.status === 'playing') {
-          gameSDK.reportMatchError(currentMatchId, 'Player disconnected')
-            .catch(err => console.error('Failed to report match error:', err));
+        // DON'T delete player - keep their data for reconnection
+        // Just mark their socket as null
+        const player = match.players.get(currentPlayer.id);
+        if (player) {
+          player.socket = null as any; // Mark as disconnected
+          console.log(`📴 Player ${player.id} (${player.username}) marked as disconnected, symbol: ${player.symbol}`);
         }
 
-        // Notify other player
+        // Notify other player (but don't cancel the match yet - allow reconnect)
         socket.to(currentMatchId).emit('player_disconnected', {
           playerId: currentPlayer.id,
+          temporary: true, // Let client know this might be temporary
         });
 
-        // Clean up match if no players left
-        if (match.players.size === 0) {
-          activeMatches.delete(currentMatchId);
-        }
+        // Only clean up match after a timeout if player doesn't reconnect
+        setTimeout(() => {
+          const matchCheck = activeMatches.get(currentMatchId!);
+          if (matchCheck) {
+            const playerCheck = matchCheck.players.get(currentPlayer!.id);
+            // If player still has null socket after 30 seconds, they're really gone
+            if (playerCheck && playerCheck.socket === null) {
+              console.log(`⏰ Player ${currentPlayer!.id} didn't reconnect, removing from match`);
+              matchCheck.players.delete(currentPlayer!.id);
+              
+              // Report error only now
+              if (matchCheck.status === 'playing') {
+                gameSDK.reportMatchError(currentMatchId!, 'Player disconnected permanently')
+                  .catch(err => console.error('Failed to report match error:', err));
+              }
+              
+              // Clean up if no connected players
+              const connectedPlayers = Array.from(matchCheck.players.values()).filter(p => p.socket !== null);
+              if (connectedPlayers.length === 0) {
+                activeMatches.delete(currentMatchId!);
+                console.log(`🗑️ Match ${currentMatchId} cleaned up - no connected players`);
+              }
+            }
+          }
+        }, 30000); // 30 second grace period for reconnection
       }
     }
   });
