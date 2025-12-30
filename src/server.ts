@@ -186,9 +186,10 @@ io.on('connection', (socket: Socket) => {
           match.startedAt = new Date();
           console.log(`✅ Match ${matchId} started`);
         } catch (error: any) {
+          // SDK might complain about previous match - log but continue
           console.error('❌ Failed to report match start:', error.message);
-          socket.emit('error', { message: 'Failed to start match' });
-          return;
+          // Don't block the game - SDK reporting is not critical for gameplay
+          match.startedAt = new Date(); // Mark as started anyway
         }
       }
 
@@ -198,6 +199,7 @@ io.on('connection', (socket: Socket) => {
           await gameSDK.reportPlayerJoin(matchId, player.id);
           console.log(`✅ Player ${player.id} joined match ${matchId}`);
         } catch (error: any) {
+          // Log but don't block - SDK reporting is not critical
           console.error('❌ Failed to report player join:', error.message);
         }
       }
@@ -429,26 +431,29 @@ io.on('connection', (socket: Socket) => {
         });
 
         // Only clean up match after a timeout if player doesn't reconnect
+        const disconnectMatchId = currentMatchId;
+        const disconnectPlayerId = currentPlayer.id;
+        
         setTimeout(() => {
-          const matchCheck = activeMatches.get(currentMatchId!);
+          const matchCheck = activeMatches.get(disconnectMatchId!);
           if (matchCheck) {
-            const playerCheck = matchCheck.players.get(currentPlayer!.id);
+            const playerCheck = matchCheck.players.get(disconnectPlayerId);
             // If player still has null socket after 30 seconds, they're really gone
             if (playerCheck && playerCheck.socket === null) {
-              console.log(`⏰ Player ${currentPlayer!.id} didn't reconnect, removing from match`);
-              matchCheck.players.delete(currentPlayer!.id);
-              
-              // Report error only now
+              console.log(`⏰ Player ${disconnectPlayerId} didn't reconnect, removing from match`);
+              matchCheck.players.delete(disconnectPlayerId);
+
+              // Try to report error (may fail due to SDK state, but that's ok)
               if (matchCheck.status === 'playing') {
-                gameSDK.reportMatchError(currentMatchId!, 'Player disconnected permanently')
-                  .catch(err => console.error('Failed to report match error:', err));
+                gameSDK.reportMatchError(disconnectMatchId!, 'Player disconnected permanently')
+                  .catch(() => {}); // Silently ignore SDK errors
               }
-              
+
               // Clean up if no connected players
               const connectedPlayers = Array.from(matchCheck.players.values()).filter(p => p.socket !== null);
               if (connectedPlayers.length === 0) {
-                activeMatches.delete(currentMatchId!);
-                console.log(`🗑️ Match ${currentMatchId} cleaned up - no connected players`);
+                activeMatches.delete(disconnectMatchId!);
+                console.log(`🗑️ Match ${disconnectMatchId} cleaned up - no connected players`);
               }
             }
           }
