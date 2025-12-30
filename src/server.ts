@@ -187,15 +187,30 @@ io.on('connection', (socket: Socket) => {
       // Step 6: Join match room FIRST (so player receives room events)
       socket.join(matchId);
 
-      // Step 7: Assign symbols and start game if we have 2 players
+      // Step 7: Check if we have 2 players - assign symbols
+      let matchStarting = false;
       if (match.players.size === 2 && match.status === 'waiting') {
         const playersArray = Array.from(match.players.values());
         playersArray[0].symbol = 'X';
         playersArray[1].symbol = 'O';
         match.currentPlayer = 'X';
         match.status = 'playing';
+        matchStarting = true;
+      }
 
-        // Notify both players (they're both in the room now)
+      // Step 8: Notify player of successful authentication FIRST
+      // (Client needs playerId before processing match_started)
+      socket.emit('authenticated', {
+        playerId: player.id,
+        username: player.username,
+        matchId: matchId,
+        symbol: player.symbol,
+        matchStatus: match.status,
+      });
+
+      // Step 9: THEN emit match_started to room (after authenticated)
+      if (matchStarting) {
+        const playersArray = Array.from(match.players.values());
         io.to(matchId).emit('match_started', {
           matchId,
           players: playersArray.map(p => ({
@@ -207,16 +222,7 @@ io.on('connection', (socket: Socket) => {
         });
       }
 
-      // Step 8: Notify player of successful authentication
-      socket.emit('authenticated', {
-        playerId: player.id,
-        username: player.username,
-        matchId: matchId,
-        symbol: player.symbol,
-        matchStatus: match.status,
-      });
-
-      // Step 9: Send current game state to newly joined player if match is in progress
+      // Step 10: Send current game state to newly joined player if match is in progress
       if (match.status === 'playing') {
         socket.emit('game_state', {
           board: match.board,
