@@ -204,8 +204,16 @@ io.on("connection", (socket: Socket) => {
                     console.log(
                         `🔄 Player ${playerId} reconnecting (existing symbol: ${player.symbol})`
                     );
+                    console.log(
+                        `   Old socket: ${
+                            player.socket ? player.socket.id : "null"
+                        }, New socket: ${socket.id}`
+                    );
                     player.socket = socket;
                     isReconnect = true;
+                    console.log(
+                        `   ✅ Socket updated for player ${playerId}, socket: ${player.socket.id}`
+                    );
                 } else {
                     // New player joining
                     player = {
@@ -215,6 +223,9 @@ io.on("connection", (socket: Socket) => {
                         symbol: null, // Will be assigned when match starts
                     };
                     match.players.set(player.id, player);
+                    console.log(
+                        `✅ Player ${playerId} (${player.username}) added to match ${matchId}, socket: ${socket.id}`
+                    );
                 }
 
                 currentPlayer = player;
@@ -360,9 +371,14 @@ io.on("connection", (socket: Socket) => {
         let player: GamePlayer | undefined;
 
         // Try to find match and player by iterating through active matches
+        // Compare by socket ID since socket object references might differ
         for (const [matchId, m] of activeMatches.entries()) {
             for (const p of m.players.values()) {
-                if (p.socket === socket) {
+                // Compare by socket ID instead of socket object reference
+                if (
+                    p.socket &&
+                    (p.socket === socket || p.socket.id === socket.id)
+                ) {
                     match = m;
                     player = p;
                     break;
@@ -375,6 +391,20 @@ io.on("connection", (socket: Socket) => {
             console.error(
                 `❌ make_move: Player not found for socket ${socket.id}`
             );
+            console.error(`   Active matches: ${activeMatches.size}`);
+            console.error(`   Checking sockets in matches:`);
+            for (const [matchId, m] of activeMatches.entries()) {
+                console.error(
+                    `     Match ${matchId}: ${m.players.size} players`
+                );
+                for (const p of m.players.values()) {
+                    console.error(
+                        `       Player ${p.id}: socket=${
+                            p.socket ? p.socket.id : "null"
+                        }`
+                    );
+                }
+            }
             socket.emit("error", { message: "Not authenticated" });
             return;
         }
