@@ -432,8 +432,9 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
-                    // Convert player IDs to numbers (SDK expects numeric IDs)
-                    // player.id is stored as string, but SDK needs number
+                    // SDK expects numeric player IDs
+                    // player.id is stored as string from String(playerIdentity.id)
+                    // We need to convert to number for the SDK
                     let winnerId: number;
                     let loserId: number;
 
@@ -458,6 +459,16 @@ io.on("connection", (socket: Socket) => {
 
                     winnerId = Math.floor(winnerIdParsed);
                     loserId = Math.floor(loserIdParsed);
+
+                    // Ensure IDs are positive integers
+                    if (winnerId <= 0 || loserId <= 0) {
+                        console.error(
+                            `❌ Invalid player IDs: winnerId=${winnerId}, loserId=${loserId} (must be positive integers)`
+                        );
+                        throw new Error(
+                            `Invalid player IDs: winnerId=${winnerId}, loserId=${loserId}`
+                        );
+                    }
 
                     const reportData = {
                         players: [
@@ -490,6 +501,30 @@ io.on("connection", (socket: Socket) => {
                         }" -> ${loserId} (type: ${typeof loserId})`
                     );
                     console.log(`   Match ID: "${match.id}"`);
+                    console.log(`   Full request payload:`, {
+                        matchId: match.id,
+                        players: reportData.players,
+                    });
+
+                    // Ensure match was started before reporting result
+                    if (!match.startedAt) {
+                        console.warn(
+                            `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`
+                        );
+                        try {
+                            await gameSDK.reportMatchStart(match.id);
+                            match.startedAt = new Date();
+                            console.log(
+                                `✅ Match ${match.id} started successfully`
+                            );
+                        } catch (startError: any) {
+                            console.error(
+                                `❌ Failed to start match before reporting result:`,
+                                startError.message
+                            );
+                            // Continue anyway - SDK might allow reporting without explicit start
+                        }
+                    }
 
                     await gameSDK.reportMatchResult(match.id, reportData);
 
