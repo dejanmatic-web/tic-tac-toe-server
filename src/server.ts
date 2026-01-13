@@ -525,7 +525,18 @@ io.on("connection", (socket: Socket) => {
                     "❌ Failed to report match result to admin:",
                     error.message
                 );
-                console.error("   Error details:", error);
+                console.error("   Error code:", error.code);
+                console.error("   Error statusCode:", error.statusCode);
+                if (error.response) {
+                    console.error(
+                        "   API Response:",
+                        JSON.stringify(error.response, null, 2)
+                    );
+                }
+                console.error(
+                    "   Full error:",
+                    JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+                );
                 console.error("   Error stack:", error.stack);
                 // Re-throw to ensure we know about critical failures
                 // But don't block game completion for players
@@ -626,7 +637,18 @@ io.on("connection", (socket: Socket) => {
                     "❌ Failed to report draw result to admin:",
                     error.message
                 );
-                console.error("   Error details:", error);
+                console.error("   Error code:", error.code);
+                console.error("   Error statusCode:", error.statusCode);
+                if (error.response) {
+                    console.error(
+                        "   API Response:",
+                        JSON.stringify(error.response, null, 2)
+                    );
+                }
+                console.error(
+                    "   Full error:",
+                    JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+                );
                 console.error("   Error stack:", error.stack);
                 // Re-throw to ensure we know about critical failures
                 // But don't block game completion for players
