@@ -243,9 +243,20 @@ io.on("connection", (socket: Socket) => {
                 // Step 5: Report player join (only for new players, not reconnects)
                 if (!isReconnect) {
                     try {
-                        await gameSDK.reportPlayerJoin(matchId, player.id);
+                        // Convert player ID to number for consistency with reportMatchResult
+                        // SDK expects consistent format between reportPlayerJoin and reportMatchResult
+                        const playerIdNum = Number(player.id);
+                        const playerIdForSDK =
+                            isNaN(playerIdNum) || playerIdNum <= 0
+                                ? Number(playerIdentity.id) || 1
+                                : Math.floor(Math.abs(playerIdNum));
+
+                        await gameSDK.reportPlayerJoin(
+                            matchId,
+                            playerIdForSDK as any
+                        );
                         console.log(
-                            `✅ Player ${player.id} joined match ${matchId}`
+                            `✅ Player ${player.id} (${playerIdForSDK}) joined match ${matchId}`
                         );
                     } catch (error: any) {
                         // Log but don't block - SDK reporting is not critical
@@ -253,6 +264,7 @@ io.on("connection", (socket: Socket) => {
                             "❌ Failed to report player join:",
                             error.message
                         );
+                        console.error("   Error details:", error);
                     }
                 }
 
