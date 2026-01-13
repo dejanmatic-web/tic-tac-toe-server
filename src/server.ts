@@ -23,6 +23,12 @@ const DEBUG = process.env.DEBUG === "true";
 // Initialize SDK
 // ============================================================================
 
+// Validate required environment variables
+if (!GAMERSTAKE_API_KEY) {
+    console.error("❌ GAMERSTAKE_API_KEY environment variable is required");
+    process.exit(1);
+}
+
 const gameSDK = new GameSDK({
     apiKey: GAMERSTAKE_API_KEY,
     environment: ENVIRONMENT,
@@ -31,10 +37,14 @@ const gameSDK = new GameSDK({
 
 if (!gameSDK.isInitialized()) {
     console.error("❌ Failed to initialize GameSDK");
+    console.error("   Check that GAMERSTAKE_API_KEY is valid");
+    console.error(`   Environment: ${ENVIRONMENT}`);
     process.exit(1);
 }
 
 console.log("✅ GameSDK initialized successfully");
+console.log(`   Environment: ${ENVIRONMENT}`);
+console.log(`   Debug mode: ${DEBUG && ENVIRONMENT !== "production"}`);
 
 // ============================================================================
 // Express & Socket.IO Setup
@@ -758,8 +768,35 @@ io.on("connection", (socket: Socket) => {
 // Start Server
 // ============================================================================
 
+// Handle uncaught errors gracefully
+process.on("uncaughtException", (error) => {
+    console.error("❌ Uncaught Exception:", error);
+    console.error("   Stack:", error.stack);
+    // Don't exit immediately - allow graceful shutdown
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("❌ Unhandled Rejection at:", promise);
+    console.error("   Reason:", reason);
+});
+
+// Start server
 httpServer.listen(PORT, () => {
     console.log(`🚀 Tic-Tac-Toe game server running on port ${PORT}`);
     console.log(`📡 Socket.IO server ready`);
     console.log(`🌍 Environment: ${ENVIRONMENT}`);
+    console.log(`🔑 API Key configured: ${GAMERSTAKE_API_KEY ? "Yes" : "No"}`);
+});
+
+// Handle server errors
+httpServer.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EADDRINUSE") {
+        console.error(`❌ Port ${PORT} is already in use`);
+        console.error(
+            "   Please stop the process using this port or use a different port"
+        );
+    } else {
+        console.error("❌ Server error:", error);
+    }
+    process.exit(1);
 });
