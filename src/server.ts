@@ -171,6 +171,11 @@ io.on("connection", (socket: Socket) => {
                 console.log(
                     `✅ Player authenticated: ${playerIdentity.username} (${playerIdentity.id})`
                 );
+                console.log(
+                    `   Player ID type: ${typeof playerIdentity.id}, value: ${JSON.stringify(
+                        playerIdentity.id
+                    )}`
+                );
 
                 // Step 2: Get or create match
                 let match = activeMatches.get(matchId);
@@ -327,19 +332,38 @@ io.on("connection", (socket: Socket) => {
     // Player makes a move
     // --------------------------------------------------------------------------
     socket.on("make_move", async (data: { row: number; col: number }) => {
-        if (!currentMatchId || !currentPlayer) {
+        // Find player by socket instead of relying on closure variables
+        // This handles reconnections and race conditions better
+        let match: GameMatch | undefined;
+        let player: GamePlayer | undefined;
+
+        // Try to find match and player by iterating through active matches
+        for (const [matchId, m] of activeMatches.entries()) {
+            for (const p of m.players.values()) {
+                if (p.socket === socket) {
+                    match = m;
+                    player = p;
+                    break;
+                }
+            }
+            if (match) break;
+        }
+
+        if (!match || !player) {
+            console.error(
+                `❌ make_move: Player not found for socket ${socket.id}`
+            );
             socket.emit("error", { message: "Not authenticated" });
             return;
         }
 
-        const match = activeMatches.get(currentMatchId);
-        if (!match || match.status !== "playing") {
+        if (match.status !== "playing") {
             socket.emit("error", { message: "Match not in playing state" });
             return;
         }
 
         // Check if it's player's turn
-        if (match.currentPlayer !== currentPlayer.symbol) {
+        if (match.currentPlayer !== player.symbol) {
             socket.emit("error", { message: "Not your turn" });
             return;
         }
@@ -361,7 +385,7 @@ io.on("connection", (socket: Socket) => {
         }
 
         // Make move
-        match.board[row][col] = currentPlayer.symbol!;
+        match.board[row][col] = player.symbol!;
 
         // Check for winner
         const winner = checkWinner(match.board);
@@ -372,9 +396,18 @@ io.on("connection", (socket: Socket) => {
 
             // Report match result
             console.log(
-                `📤 Attempting to report match result to SDK for match ${currentMatchId}`
+                `📤 Attempting to report match result to SDK for match ${match.id}`
             );
             console.log(`   SDK initialized: ${gameSDK.isInitialized()}`);
+            console.log(
+                `   Match started: ${
+                    match.startedAt
+                        ? "Yes (" + match.startedAt.toISOString() + ")"
+                        : "No"
+                }`
+            );
+            console.log(`   Match status: ${match.status}`);
+            console.log(`   Number of players: ${match.players.size}`);
             try {
                 const winnerPlayer = Array.from(match.players.values()).find(
                     (p) => p.symbol === winner
@@ -399,15 +432,42 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
+                    // Convert player IDs to numbers (SDK expects numeric IDs)
+                    // player.id is stored as string, but SDK needs number
+                    let winnerId: number;
+                    let loserId: number;
+
+                    // Try to parse as number
+                    const winnerIdParsed = Number(winnerPlayer.id);
+                    const loserIdParsed = Number(loserPlayer.id);
+
+                    // Check if parsing resulted in valid numbers
+                    if (
+                        isNaN(winnerIdParsed) ||
+                        isNaN(loserIdParsed) ||
+                        !isFinite(winnerIdParsed) ||
+                        !isFinite(loserIdParsed)
+                    ) {
+                        console.error(
+                            `❌ Invalid player IDs: winnerId="${winnerPlayer.id}" (parsed: ${winnerIdParsed}), loserId="${loserPlayer.id}" (parsed: ${loserIdParsed})`
+                        );
+                        throw new Error(
+                            `Invalid player IDs: winnerId="${winnerPlayer.id}", loserId="${loserPlayer.id}"`
+                        );
+                    }
+
+                    winnerId = Math.floor(winnerIdParsed);
+                    loserId = Math.floor(loserIdParsed);
+
                     const reportData = {
                         players: [
                             {
-                                id: parseInt(winnerPlayer.id, 10),
+                                id: winnerId,
                                 score: 1,
                                 isWinner: true,
                             },
                             {
-                                id: parseInt(loserPlayer.id, 10),
+                                id: loserId,
                                 score: 0,
                                 isWinner: false,
                             },
@@ -415,15 +475,26 @@ io.on("connection", (socket: Socket) => {
                     };
 
                     console.log(
-                        `📤 Calling gameSDK.reportMatchResult(${currentMatchId},`,
+                        `📤 Calling gameSDK.reportMatchResult(${match.id},`,
                         JSON.stringify(reportData, null, 2),
                         `)`
                     );
+                    console.log(
+                        `   Winner player ID: "${
+                            winnerPlayer.id
+                        }" -> ${winnerId} (type: ${typeof winnerId})`
+                    );
+                    console.log(
+                        `   Loser player ID: "${
+                            loserPlayer.id
+                        }" -> ${loserId} (type: ${typeof loserId})`
+                    );
+                    console.log(`   Match ID: "${match.id}"`);
 
-                    await gameSDK.reportMatchResult(currentMatchId, reportData);
+                    await gameSDK.reportMatchResult(match.id, reportData);
 
                     console.log(
-                        `✅ Match ${currentMatchId} finished. Winner: ${winnerPlayer.username} (${winnerPlayer.id})`
+                        `✅ Match ${match.id} finished. Winner: ${winnerPlayer.username} (${winnerPlayer.id})`
                     );
                     console.log(
                         `   ✅ Successfully reported to admin platform via SDK`
@@ -446,13 +517,13 @@ io.on("connection", (socket: Socket) => {
                     match.winner || "Draw"
                 }`
             );
-            io.to(currentMatchId).emit("game_finished", {
+            io.to(match.id).emit("game_finished", {
                 winner: match.winner,
                 board: match.board,
             });
 
             // Clean up after delay
-            const matchIdToCleanup = currentMatchId;
+            const matchIdToCleanup = match.id;
             setTimeout(() => {
                 if (matchIdToCleanup) {
                     activeMatches.delete(matchIdToCleanup);
@@ -463,7 +534,7 @@ io.on("connection", (socket: Socket) => {
             match.status = "finished";
 
             console.log(
-                `📤 Attempting to report draw result to SDK for match ${currentMatchId}`
+                `📤 Attempting to report draw result to SDK for match ${match.id}`
             );
             console.log(`   SDK initialized: ${gameSDK.isInitialized()}`);
             try {
@@ -472,11 +543,11 @@ io.on("connection", (socket: Socket) => {
                 // Validate we have players before reporting
                 if (playersArray.length === 0) {
                     console.error(
-                        `❌ Cannot report draw: No players in match ${currentMatchId}`
+                        `❌ Cannot report draw: No players in match ${match.id}`
                     );
                 } else if (playersArray.length < 2) {
                     console.error(
-                        `❌ Cannot report draw: Only ${playersArray.length} player(s) in match ${currentMatchId}`
+                        `❌ Cannot report draw: Only ${playersArray.length} player(s) in match ${match.id}`
                     );
                     console.error(
                         `   Players:`,
@@ -487,25 +558,49 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
-                    const reportData = {
-                        players: playersArray.map((p) => ({
-                            id: parseInt(p.id, 10),
+                    // Convert all player IDs to numbers (SDK expects numeric IDs)
+                    const playersData = playersArray.map((p) => {
+                        const playerIdParsed = Number(p.id);
+                        if (
+                            isNaN(playerIdParsed) ||
+                            !isFinite(playerIdParsed)
+                        ) {
+                            console.error(
+                                `❌ Invalid player ID: "${p.id}" (parsed: ${playerIdParsed})`
+                            );
+                            throw new Error(`Invalid player ID: "${p.id}"`);
+                        }
+                        const playerId = Math.floor(playerIdParsed);
+                        return {
+                            id: playerId,
                             score: 0,
                             isWinner: false,
-                        })),
+                        };
+                    });
+
+                    const reportData = {
+                        players: playersData,
                     };
 
                     console.log(
-                        `📤 Calling gameSDK.reportMatchResult(${currentMatchId},`,
+                        `📤 Calling gameSDK.reportMatchResult(${match.id},`,
                         JSON.stringify(reportData, null, 2),
                         `)`
                     );
-
-                    await gameSDK.reportMatchResult(currentMatchId, reportData);
-
                     console.log(
-                        `✅ Match ${currentMatchId} finished as a draw`
+                        `   Player IDs:`,
+                        playersArray
+                            .map(
+                                (p) =>
+                                    `"${p.id}" -> ${Math.floor(Number(p.id))}`
+                            )
+                            .join(", ")
                     );
+                    console.log(`   Match ID: "${match.id}"`);
+
+                    await gameSDK.reportMatchResult(match.id, reportData);
+
+                    console.log(`✅ Match ${match.id} finished as a draw`);
                     console.log(
                         `   ✅ Successfully reported to admin platform via SDK`
                     );
@@ -528,12 +623,12 @@ io.on("connection", (socket: Socket) => {
             }
 
             console.log(`📢 Notifying players that game finished as a draw`);
-            io.to(currentMatchId).emit("game_finished", {
+            io.to(match.id).emit("game_finished", {
                 winner: null,
                 board: match.board,
             });
 
-            const matchIdToCleanup2 = currentMatchId;
+            const matchIdToCleanup2 = match.id;
             setTimeout(() => {
                 if (matchIdToCleanup2) {
                     activeMatches.delete(matchIdToCleanup2);
@@ -544,10 +639,10 @@ io.on("connection", (socket: Socket) => {
             match.currentPlayer = match.currentPlayer === "X" ? "O" : "X";
 
             // Broadcast move to all players
-            io.to(currentMatchId).emit("move_made", {
+            io.to(match.id).emit("move_made", {
                 row: row,
                 col: col,
-                symbol: currentPlayer.symbol,
+                symbol: player.symbol,
                 currentPlayer: match.currentPlayer,
                 board: match.board,
             });
