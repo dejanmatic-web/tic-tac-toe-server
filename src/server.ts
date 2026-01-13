@@ -442,53 +442,17 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
-                    // SDK expects numeric player IDs
-                    // player.id is stored as string from String(playerIdentity.id)
-                    // We need to convert to number for the SDK
-                    let winnerId: number;
-                    let loserId: number;
-
-                    // Try to parse as number
-                    const winnerIdParsed = Number(winnerPlayer.id);
-                    const loserIdParsed = Number(loserPlayer.id);
-
-                    // Check if parsing resulted in valid numbers
-                    if (
-                        isNaN(winnerIdParsed) ||
-                        isNaN(loserIdParsed) ||
-                        !isFinite(winnerIdParsed) ||
-                        !isFinite(loserIdParsed)
-                    ) {
-                        console.error(
-                            `❌ Invalid player IDs: winnerId="${winnerPlayer.id}" (parsed: ${winnerIdParsed}), loserId="${loserPlayer.id}" (parsed: ${loserIdParsed})`
-                        );
-                        throw new Error(
-                            `Invalid player IDs: winnerId="${winnerPlayer.id}", loserId="${loserPlayer.id}"`
-                        );
-                    }
-
-                    winnerId = Math.floor(winnerIdParsed);
-                    loserId = Math.floor(loserIdParsed);
-
-                    // Ensure IDs are positive integers
-                    if (winnerId <= 0 || loserId <= 0) {
-                        console.error(
-                            `❌ Invalid player IDs: winnerId=${winnerId}, loserId=${loserId} (must be positive integers)`
-                        );
-                        throw new Error(
-                            `Invalid player IDs: winnerId=${winnerId}, loserId=${loserId}`
-                        );
-                    }
-
+                    // Pass player IDs as-is without validation
+                    // Let the SDK handle the format
                     const reportData = {
                         players: [
                             {
-                                id: winnerId,
+                                id: winnerPlayer.id as any,
                                 score: 1,
                                 isWinner: true,
                             },
                             {
-                                id: loserId,
+                                id: loserPlayer.id as any,
                                 score: 0,
                                 isWinner: false,
                             },
@@ -503,12 +467,12 @@ io.on("connection", (socket: Socket) => {
                     console.log(
                         `   Winner player ID: "${
                             winnerPlayer.id
-                        }" -> ${winnerId} (type: ${typeof winnerId})`
+                        }" (type: ${typeof winnerPlayer.id})`
                     );
                     console.log(
                         `   Loser player ID: "${
                             loserPlayer.id
-                        }" -> ${loserId} (type: ${typeof loserId})`
+                        }" (type: ${typeof loserPlayer.id})`
                     );
                     console.log(`   Match ID: "${match.id}"`);
                     console.log(`   Full request payload:`, {
@@ -603,28 +567,14 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
-                    // Convert all player IDs to numbers (SDK expects numeric IDs)
-                    const playersData = playersArray.map((p) => {
-                        const playerIdParsed = Number(p.id);
-                        if (
-                            isNaN(playerIdParsed) ||
-                            !isFinite(playerIdParsed)
-                        ) {
-                            console.error(
-                                `❌ Invalid player ID: "${p.id}" (parsed: ${playerIdParsed})`
-                            );
-                            throw new Error(`Invalid player ID: "${p.id}"`);
-                        }
-                        const playerId = Math.floor(playerIdParsed);
-                        return {
-                            id: playerId,
+                    // Pass player IDs as-is without validation
+                    // Let the SDK handle the format
+                    const reportData = {
+                        players: playersArray.map((p) => ({
+                            id: p.id as any,
                             score: 0,
                             isWinner: false,
-                        };
-                    });
-
-                    const reportData = {
-                        players: playersData,
+                        })),
                     };
 
                     console.log(
@@ -635,10 +585,7 @@ io.on("connection", (socket: Socket) => {
                     console.log(
                         `   Player IDs:`,
                         playersArray
-                            .map(
-                                (p) =>
-                                    `"${p.id}" -> ${Math.floor(Number(p.id))}`
-                            )
+                            .map((p) => `"${p.id}" (type: ${typeof p.id})`)
                             .join(", ")
                     );
                     console.log(`   Match ID: "${match.id}"`);
