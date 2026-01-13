@@ -442,17 +442,28 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
-                    // Pass player IDs as-is without validation
-                    // Let the SDK handle the format
+                    // SDK requires positive numbers for player IDs
+                    // Convert to numbers - use Math.abs to ensure positive, fallback to 1 if invalid
+                    const winnerIdNum = Number(winnerPlayer.id);
+                    const loserIdNum = Number(loserPlayer.id);
+                    const winnerId =
+                        isNaN(winnerIdNum) || winnerIdNum <= 0
+                            ? 1
+                            : Math.floor(Math.abs(winnerIdNum));
+                    const loserId =
+                        isNaN(loserIdNum) || loserIdNum <= 0
+                            ? 1
+                            : Math.floor(Math.abs(loserIdNum));
+
                     const reportData = {
                         players: [
                             {
-                                id: winnerPlayer.id as any,
+                                id: winnerId,
                                 score: 1,
                                 isWinner: true,
                             },
                             {
-                                id: loserPlayer.id as any,
+                                id: loserId,
                                 score: 0,
                                 isWinner: false,
                             },
@@ -567,14 +578,21 @@ io.on("connection", (socket: Socket) => {
                         }))
                     );
                 } else {
-                    // Pass player IDs as-is without validation
-                    // Let the SDK handle the format
+                    // SDK requires positive numbers for player IDs
+                    // Convert to numbers - use Math.abs to ensure positive, fallback to 1 if invalid
                     const reportData = {
-                        players: playersArray.map((p) => ({
-                            id: p.id as any,
-                            score: 0,
-                            isWinner: false,
-                        })),
+                        players: playersArray.map((p) => {
+                            const playerIdNum = Number(p.id);
+                            const playerId =
+                                isNaN(playerIdNum) || playerIdNum <= 0
+                                    ? 1
+                                    : Math.floor(Math.abs(playerIdNum));
+                            return {
+                                id: playerId,
+                                score: 0,
+                                isWinner: false,
+                            };
+                        }),
                     };
 
                     console.log(
