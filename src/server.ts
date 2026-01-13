@@ -332,24 +332,34 @@ io.on('connection', (socket: Socket) => {
           p => p.symbol !== winner
         );
 
-        await gameSDK.reportMatchResult(currentMatchId, {
-          players: [
-            {
-              id: parseInt(winnerPlayer!.id, 10),
-              score: 1,
-              isWinner: true,
-            },
-            {
-              id: parseInt(loserPlayer!.id, 10),
-              score: 0,
-              isWinner: false,
-            },
-          ],
-        });
+        // Validate players exist before reporting
+        if (!winnerPlayer || !loserPlayer) {
+          console.error(`❌ Cannot report match result: Missing players. Winner: ${winnerPlayer ? 'found' : 'missing'}, Loser: ${loserPlayer ? 'found' : 'missing'}`);
+          console.error(`   Match players:`, Array.from(match.players.values()).map(p => ({ id: p.id, username: p.username, symbol: p.symbol })));
+        } else {
+          await gameSDK.reportMatchResult(currentMatchId, {
+            players: [
+              {
+                id: parseInt(winnerPlayer.id, 10),
+                score: 1,
+                isWinner: true,
+              },
+              {
+                id: parseInt(loserPlayer.id, 10),
+                score: 0,
+                isWinner: false,
+              },
+            ],
+          });
 
-        console.log(`✅ Match ${currentMatchId} finished. Winner: ${winnerPlayer!.username}`);
+          console.log(`✅ Match ${currentMatchId} finished. Winner: ${winnerPlayer.username} (${winnerPlayer.id})`);
+          console.log(`   Reported to admin platform successfully`);
+        }
       } catch (error: any) {
-        console.error('❌ Failed to report match result:', error.message);
+        console.error('❌ Failed to report match result to admin:', error.message);
+        console.error('   Error details:', error);
+        // Re-throw to ensure we know about critical failures
+        // But don't block game completion for players
       }
 
       // Notify players
@@ -371,15 +381,31 @@ io.on('connection', (socket: Socket) => {
 
       try {
         const playersArray = Array.from(match.players.values());
-        await gameSDK.reportMatchResult(currentMatchId, {
-          players: playersArray.map(p => ({
-            id: parseInt(p.id, 10),
-            score: 0,
-            isWinner: false,
-          })),
-        });
+
+        // Validate we have players before reporting
+        if (playersArray.length === 0) {
+          console.error(`❌ Cannot report draw: No players in match ${currentMatchId}`);
+        } else if (playersArray.length < 2) {
+          console.error(`❌ Cannot report draw: Only ${playersArray.length} player(s) in match ${currentMatchId}`);
+          console.error(`   Players:`, playersArray.map(p => ({ id: p.id, username: p.username, symbol: p.symbol })));
+        } else {
+          await gameSDK.reportMatchResult(currentMatchId, {
+            players: playersArray.map(p => ({
+              id: parseInt(p.id, 10),
+              score: 0,
+              isWinner: false,
+            })),
+          });
+
+          console.log(`✅ Match ${currentMatchId} finished as a draw`);
+          console.log(`   Reported to admin platform successfully`);
+          console.log(`   Players:`, playersArray.map(p => `${p.username} (${p.id})`).join(', '));
+        }
       } catch (error: any) {
-        console.error('❌ Failed to report match result:', error.message);
+        console.error('❌ Failed to report draw result to admin:', error.message);
+        console.error('   Error details:', error);
+        // Re-throw to ensure we know about critical failures
+        // But don't block game completion for players
       }
 
       io.to(currentMatchId).emit('game_finished', {
