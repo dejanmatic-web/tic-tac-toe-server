@@ -486,7 +486,8 @@ io.on("connection", (socket: Socket) => {
         // Check for winner
         const winner = checkWinner(match.board);
         if (winner) {
-            match.status = "finished";
+            // Don't set status to "finished" yet - API might not allow registering players to finished matches
+            // match.status = "finished"; // Will set after successful reporting
             match.winner = winner;
             match.currentPlayer = winner as "X" | "O";
 
@@ -502,7 +503,9 @@ io.on("connection", (socket: Socket) => {
                         : "No"
                 }`
             );
-            console.log(`   Match status: ${match.status}`);
+            console.log(
+                `   Match status: ${match.status} (will be set to finished after reporting)`
+            );
             console.log(`   Number of players: ${match.players.size}`);
             try {
                 const winnerPlayer = Array.from(match.players.values()).find(
@@ -660,6 +663,9 @@ io.on("connection", (socket: Socket) => {
 
                     await gameSDK.reportMatchResult(match.id, reportData);
 
+                    // Now set status to finished after successful reporting
+                    match.status = "finished";
+
                     console.log(
                         `✅ Match ${match.id} finished. Winner: ${winnerPlayer.username} (${winnerPlayer.id})`
                     );
@@ -668,6 +674,8 @@ io.on("connection", (socket: Socket) => {
                     );
                 }
             } catch (error: any) {
+                // Set status to finished even if reporting fails (game is still over)
+                match.status = "finished";
                 console.error(
                     "❌ Failed to report match result to admin:",
                     error.message
@@ -814,6 +822,9 @@ io.on("connection", (socket: Socket) => {
 
                     await gameSDK.reportMatchResult(match.id, reportData);
 
+                    // Now set status to finished after successful reporting
+                    match.status = "finished";
+
                     console.log(`✅ Match ${match.id} finished as a draw`);
                     console.log(
                         `   ✅ Successfully reported to admin platform via SDK`
@@ -826,6 +837,9 @@ io.on("connection", (socket: Socket) => {
                     );
                 }
             } catch (error: any) {
+                // Set status to finished even if reporting fails (game is still over)
+                match.status = "finished";
+
                 console.error(
                     "❌ Failed to report draw result to admin:",
                     error.message
