@@ -5,6 +5,7 @@ export interface GamePlayer {
   username: string;
   socket: Socket;
   symbol: 'X' | 'O' | null;
+  registeredWithSDK: boolean;  // Track if player was successfully registered via reportPlayerJoin
 }
 
 export interface GameMatch {

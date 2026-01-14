@@ -229,10 +229,14 @@ io.on("connection", (socket: Socket) => {
                         username: playerIdentity.username,
                         socket: socket,
                         symbol: null, // Will be assigned when match starts
+                        registeredWithSDK: false, // Will be set to true after successful reportPlayerJoin
                     };
                     match.players.set(player.id, player);
                     console.log(
                         `✅ Player ${playerId} (${player.username}) added to match ${matchId}, socket: ${socket.id}`
+                    );
+                    console.log(
+                        `   → registeredWithSDK: false (not yet registered)`
                     );
                 }
 
@@ -252,7 +256,7 @@ io.on("connection", (socket: Socket) => {
                             `   → Endpoint: POST /matches/${matchId}/start`
                         );
                         console.log(`   → Params: { matchId: "${matchId}" }`);
-                        await gameSDK.reportMatchStart(matchId);
+                        // await gameSDK.reportMatchStart(matchId);
                         match.startedAt = new Date();
                         console.log(`✅ Match ${matchId} started`);
                     } catch (error: any) {
@@ -314,9 +318,11 @@ io.on("connection", (socket: Socket) => {
                             matchId,
                             playerIdentity.id
                         );
+                        player.registeredWithSDK = true;
                         console.log(
                             `✅ Player ${player.id} joined match ${matchId}`
                         );
+                        console.log(`   → registeredWithSDK: true ✓`);
                     } catch (error: any) {
                         // Log but don't block - SDK reporting is not critical
                         console.error(
@@ -356,13 +362,18 @@ io.on("connection", (socket: Socket) => {
                                     matchId,
                                     playerIdentity.id
                                 );
+                                player.registeredWithSDK = true;
                                 console.log(
                                     `✅ Player ${player.id} joined match ${matchId} (retry succeeded)`
                                 );
+                                console.log(`   → registeredWithSDK: true ✓`);
                             } catch (retryError: any) {
                                 console.error(
                                     `❌ Retry also failed:`,
                                     retryError.message
+                                );
+                                console.log(
+                                    `   → registeredWithSDK: false ✗ (registration failed)`
                                 );
                             }
                         }
@@ -610,24 +621,61 @@ io.on("connection", (socket: Socket) => {
                     const reportData = {
                         players: [
                             {
-                                id: winnerId,    // positive integer
-                                score: 1,        // integer
-                                isWinner: true,  // boolean
+                                id: winnerId, // positive integer
+                                score: 1, // integer
+                                isWinner: true, // boolean
                             },
                             {
-                                id: loserId,     // positive integer
-                                score: 0,        // integer
+                                id: loserId, // positive integer
+                                score: 0, // integer
                                 isWinner: false, // boolean
                             },
                         ],
                     };
-                    
+
                     // Validate types match schema before sending
-                    console.log(`📋 Payload validation (POST /:matchId/finish):`);
-                    console.log(`   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`);
+                    console.log(
+                        `📋 Payload validation (POST /:matchId/finish):`
+                    );
+                    console.log(
+                        `   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`
+                    );
                     reportData.players.forEach((p, i) => {
-                        console.log(`   Player[${i}]: id=${p.id} (${typeof p.id}, positive=${p.id > 0}), score=${p.score} (${typeof p.score}), isWinner=${p.isWinner} (${typeof p.isWinner})`);
+                        console.log(
+                            `   Player[${i}]: id=${
+                                p.id
+                            } (${typeof p.id}, positive=${p.id > 0}), score=${
+                                p.score
+                            } (${typeof p.score}), isWinner=${
+                                p.isWinner
+                            } (${typeof p.isWinner})`
+                        );
                     });
+
+                    // Check if players are registered with SDK
+                    console.log(`🔍 Checking player SDK registration status:`);
+                    console.log(
+                        `   Winner (${winnerPlayer.username}, id=${
+                            winnerPlayer.id
+                        }): registeredWithSDK=${
+                            winnerPlayer.registeredWithSDK
+                        } ${winnerPlayer.registeredWithSDK ? "✓" : "✗"}`
+                    );
+                    console.log(
+                        `   Loser (${loserPlayer.username}, id=${
+                            loserPlayer.id
+                        }): registeredWithSDK=${
+                            loserPlayer.registeredWithSDK
+                        } ${loserPlayer.registeredWithSDK ? "✓" : "✗"}`
+                    );
+                    if (
+                        !winnerPlayer.registeredWithSDK ||
+                        !loserPlayer.registeredWithSDK
+                    ) {
+                        console.warn(
+                            `⚠️ WARNING: Not all players are registered with SDK! This may cause HTTP 400 error.`
+                        );
+                    }
 
                     console.log(
                         `📤 Calling gameSDK.reportMatchResult(${match.id},`,
@@ -790,8 +838,8 @@ io.on("connection", (socket: Socket) => {
                                     ? 1
                                     : playerIdParsed;
                             return {
-                                id: playerId,    // positive integer
-                                score: 0,        // integer
+                                id: playerId, // positive integer
+                                score: 0, // integer
                                 isWinner: false, // boolean
                             };
                         }),
@@ -802,14 +850,47 @@ io.on("connection", (socket: Socket) => {
                         JSON.stringify(reportData, null, 2),
                         `)`
                     );
-                    
+
                     // Validate types match schema before sending
-                    console.log(`📋 Payload validation (POST /:matchId/finish - draw):`);
-                    console.log(`   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`);
+                    console.log(
+                        `📋 Payload validation (POST /:matchId/finish - draw):`
+                    );
+                    console.log(
+                        `   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`
+                    );
                     reportData.players.forEach((p, i) => {
-                        console.log(`   Player[${i}]: id=${p.id} (${typeof p.id}, positive=${p.id > 0}), score=${p.score} (${typeof p.score}), isWinner=${p.isWinner} (${typeof p.isWinner})`);
+                        console.log(
+                            `   Player[${i}]: id=${
+                                p.id
+                            } (${typeof p.id}, positive=${p.id > 0}), score=${
+                                p.score
+                            } (${typeof p.score}), isWinner=${
+                                p.isWinner
+                            } (${typeof p.isWinner})`
+                        );
                     });
-                    
+
+                    // Check if players are registered with SDK
+                    console.log(
+                        `🔍 Checking player SDK registration status (draw):`
+                    );
+                    let allRegistered = true;
+                    playersArray.forEach((p) => {
+                        console.log(
+                            `   Player (${p.username}, id=${
+                                p.id
+                            }): registeredWithSDK=${p.registeredWithSDK} ${
+                                p.registeredWithSDK ? "✓" : "✗"
+                            }`
+                        );
+                        if (!p.registeredWithSDK) allRegistered = false;
+                    });
+                    if (!allRegistered) {
+                        console.warn(
+                            `⚠️ WARNING: Not all players are registered with SDK! This may cause HTTP 400 error.`
+                        );
+                    }
+
                     console.log(
                         `   Player IDs:`,
                         playersArray
