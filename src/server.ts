@@ -502,7 +502,11 @@ io.on("connection", (socket: Socket) => {
                     console.log(
                         `   Loser: ${loserPlayer.username} (ID: "${loserPlayer.id}" -> ${loserId})`
                     );
+                    console.log(
+                        `   ⚠️ Note: Ensure both players were registered via reportPlayerJoin before reporting results`
+                    );
 
+                    // Prepare report data with parsed numeric IDs
                     const reportData = {
                         players: [
                             {
