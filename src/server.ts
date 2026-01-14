@@ -217,6 +217,9 @@ io.on("connection", (socket: Socket) => {
                             player.socket ? player.socket.id : "null"
                         }, New socket: ${socket.id}`
                     );
+                    console.log(
+                        `   Previous registration status: registeredWithSDK=${player.registeredWithSDK}`
+                    );
                     player.socket = socket;
                     isReconnect = true;
                     console.log(
@@ -272,7 +275,37 @@ io.on("connection", (socket: Socket) => {
 
                 // Step 5: Report player join (only for new players, not reconnects)
                 // IMPORTANT: Match must be started before players can join
-                if (!isReconnect) {
+                // Also retry if reconnecting but registration previously failed
+                if (
+                    !isReconnect ||
+                    (isReconnect && !player.registeredWithSDK)
+                ) {
+                    const isRetryAttempt =
+                        isReconnect && !player.registeredWithSDK;
+                    if (isRetryAttempt) {
+                        console.log(
+                            `⚠️ Player ${player.id} reconnecting but was never registered - attempting registration now`
+                        );
+                    }
+                    console.log(`\n${"─".repeat(60)}`);
+                    console.log(
+                        `🔍 PLAYER JOIN ATTEMPT: ${player.username} (${player.id})`
+                    );
+                    console.log(`   Match ID: "${matchId}"`);
+                    console.log(`   Match status: ${match.status}`);
+                    console.log(
+                        `   Match startedAt: ${
+                            match.startedAt
+                                ? match.startedAt.toISOString()
+                                : "null"
+                        }`
+                    );
+                    console.log(
+                        `   Current players in match: ${match.players.size}`
+                    );
+                    console.log(`   Is reconnect: ${isReconnect}`);
+                    console.log(`${"─".repeat(60)}\n`);
+
                     try {
                         // Ensure match is started before reporting player join
                         if (!match.startedAt) {
@@ -325,11 +358,43 @@ io.on("connection", (socket: Socket) => {
                         console.log(`   → registeredWithSDK: true ✓`);
                     } catch (error: any) {
                         // Log but don't block - SDK reporting is not critical
+                        console.error(`\n${"─".repeat(60)}`);
                         console.error(
-                            "❌ Failed to report player join:",
-                            error.message
+                            `❌ FAILED to report player join for player ${player.id} (${player.username})`
                         );
-                        console.error("   Error details:", error);
+                        console.error(`   Match ID: "${matchId}"`);
+                        console.error(
+                            `   Player ID: "${
+                                playerIdentity.id
+                            }" (type: ${typeof playerIdentity.id})`
+                        );
+                        console.error(`   Error message: ${error.message}`);
+                        console.error(`   Error code: ${error.code || "N/A"}`);
+                        console.error(
+                            `   Error statusCode: ${error.statusCode || "N/A"}`
+                        );
+                        if (error.response) {
+                            console.error(
+                                `   API Response:`,
+                                JSON.stringify(error.response, null, 2)
+                            );
+                        }
+                        console.error(
+                            `   Full error object:`,
+                            JSON.stringify(
+                                error,
+                                Object.getOwnPropertyNames(error),
+                                2
+                            )
+                        );
+                        if (error.stack) {
+                            console.error(`   Stack trace:`, error.stack);
+                        }
+                        console.error(`${"─".repeat(60)}\n`);
+
+                        // Explicitly mark as not registered
+                        player.registeredWithSDK = false;
+
                         // Try to retry if match wasn't started
                         if (
                             error.code === "MATCH_ERROR" &&
@@ -348,6 +413,9 @@ io.on("connection", (socket: Socket) => {
                                     );
                                     await gameSDK.reportMatchStart(matchId);
                                     match.startedAt = new Date();
+                                    console.log(
+                                        `   ✅ Match started successfully on retry`
+                                    );
                                 }
                                 console.log(
                                     `🌐 SDK CALL: reportPlayerJoin (retry)`
@@ -368,14 +436,56 @@ io.on("connection", (socket: Socket) => {
                                 );
                                 console.log(`   → registeredWithSDK: true ✓`);
                             } catch (retryError: any) {
+                                console.error(`\n${"─".repeat(60)}`);
                                 console.error(
-                                    `❌ Retry also failed:`,
-                                    retryError.message
+                                    `❌ RETRY FAILED for player ${player.id} (${player.username})`
                                 );
+                                console.error(`   Match ID: "${matchId}"`);
+                                console.error(
+                                    `   Error message: ${retryError.message}`
+                                );
+                                console.error(
+                                    `   Error code: ${retryError.code || "N/A"}`
+                                );
+                                console.error(
+                                    `   Error statusCode: ${
+                                        retryError.statusCode || "N/A"
+                                    }`
+                                );
+                                if (retryError.response) {
+                                    console.error(
+                                        `   API Response:`,
+                                        JSON.stringify(
+                                            retryError.response,
+                                            null,
+                                            2
+                                        )
+                                    );
+                                }
+                                console.error(
+                                    `   Full error object:`,
+                                    JSON.stringify(
+                                        retryError,
+                                        Object.getOwnPropertyNames(retryError),
+                                        2
+                                    )
+                                );
+                                console.error(`${"─".repeat(60)}\n`);
+                                player.registeredWithSDK = false;
                                 console.log(
-                                    `   → registeredWithSDK: false ✗ (registration failed)`
+                                    `   → registeredWithSDK: false ✗ (registration failed after retry)`
                                 );
                             }
+                        } else {
+                            // Error is NOT about match not started - log what it actually is
+                            console.error(
+                                `⚠️ Error is NOT about match not started. Actual error type: ${
+                                    error.code || "unknown"
+                                }`
+                            );
+                            console.error(
+                                `   This might be: Wrong match ID, Player already registered, Network error, etc.`
+                            );
                         }
                     }
                 }
@@ -400,6 +510,37 @@ io.on("connection", (socket: Socket) => {
 
                 // Step 8: Notify player of successful authentication FIRST
                 // (Client needs playerId before processing match_started)
+
+                // Log final registration status summary
+                console.log(`\n${"─".repeat(60)}`);
+                console.log(
+                    `📊 AUTHENTICATION SUMMARY for ${player.username} (${player.id})`
+                );
+                console.log(`   Match ID: "${matchId}"`);
+                console.log(`   Match status: ${match.status}`);
+                console.log(
+                    `   Match startedAt: ${
+                        match.startedAt ? match.startedAt.toISOString() : "null"
+                    }`
+                );
+                console.log(
+                    `   Player registeredWithSDK: ${
+                        player.registeredWithSDK ? "✅ YES" : "❌ NO"
+                    }`
+                );
+                console.log(`   Total players in match: ${match.players.size}`);
+                console.log(`   All players registration status:`);
+                Array.from(match.players.values()).forEach((p) => {
+                    console.log(
+                        `      - ${p.username} (${p.id}): ${
+                            p.registeredWithSDK
+                                ? "✅ registered"
+                                : "❌ NOT registered"
+                        }`
+                    );
+                });
+                console.log(`${"─".repeat(60)}\n`);
+
                 socket.emit("authenticated", {
                     playerId: player.id,
                     username: player.username,
@@ -726,55 +867,105 @@ io.on("connection", (socket: Socket) => {
                     // DIAGNOSTIC: Check for common HTTP 400 error causes
                     // ═══════════════════════════════════════════════════════════════
                     console.log(`\n${"═".repeat(60)}`);
-                    console.log(`🔎 PRE-FLIGHT CHECK: Diagnosing potential HTTP 400 causes`);
+                    console.log(
+                        `🔎 PRE-FLIGHT CHECK: Diagnosing potential HTTP 400 causes`
+                    );
                     console.log(`${"═".repeat(60)}`);
 
                     // Check 1: Match ID exists on platform
                     // (We can't verify this directly, but we log the ID for manual checking)
                     console.log(`\n1️⃣ MATCH ID CHECK:`);
                     console.log(`   Match ID: "${match.id}"`);
-                    console.log(`   → This ID must exist on the platform (created via admin panel)`);
-                    console.log(`   → If HTTP 400: Verify this match ID exists in the admin dashboard`);
+                    console.log(
+                        `   → This ID must exist on the platform (created via admin panel)`
+                    );
+                    console.log(
+                        `   → If HTTP 400: Verify this match ID exists in the admin dashboard`
+                    );
 
                     // Check 2: Match was started via reportMatchStart
                     console.log(`\n2️⃣ MATCH STARTED CHECK:`);
-                    console.log(`   match.startedAt: ${match.startedAt ? match.startedAt.toISOString() : 'null'}`);
+                    console.log(
+                        `   match.startedAt: ${
+                            match.startedAt
+                                ? match.startedAt.toISOString()
+                                : "null"
+                        }`
+                    );
                     if (match.startedAt) {
-                        console.log(`   ✅ Match WAS started via reportMatchStart`);
+                        console.log(
+                            `   ✅ Match WAS started via reportMatchStart`
+                        );
                     } else {
-                        console.log(`   ❌ Match was NOT started via reportMatchStart`);
-                        console.log(`   → This will likely cause HTTP 400 error`);
+                        console.log(
+                            `   ❌ Match was NOT started via reportMatchStart`
+                        );
+                        console.log(
+                            `   → This will likely cause HTTP 400 error`
+                        );
                     }
 
                     // Check 3: Players were registered via reportPlayerJoin
                     console.log(`\n3️⃣ PLAYERS REGISTERED CHECK:`);
-                    console.log(`   Winner (${winnerPlayer.username}, id=${winnerPlayer.id}):`);
-                    console.log(`      registeredWithSDK: ${winnerPlayer.registeredWithSDK}`);
+                    console.log(
+                        `   Winner (${winnerPlayer.username}, id=${winnerPlayer.id}):`
+                    );
+                    console.log(
+                        `      registeredWithSDK: ${winnerPlayer.registeredWithSDK}`
+                    );
                     if (winnerPlayer.registeredWithSDK) {
-                        console.log(`      ✅ Player WAS registered via reportPlayerJoin`);
+                        console.log(
+                            `      ✅ Player WAS registered via reportPlayerJoin`
+                        );
                     } else {
-                        console.log(`      ❌ Player was NOT registered via reportPlayerJoin`);
-                        console.log(`      → This will likely cause HTTP 400 error`);
+                        console.log(
+                            `      ❌ Player was NOT registered via reportPlayerJoin`
+                        );
+                        console.log(
+                            `      → This will likely cause HTTP 400 error`
+                        );
                     }
-                    console.log(`   Loser (${loserPlayer.username}, id=${loserPlayer.id}):`);
-                    console.log(`      registeredWithSDK: ${loserPlayer.registeredWithSDK}`);
+                    console.log(
+                        `   Loser (${loserPlayer.username}, id=${loserPlayer.id}):`
+                    );
+                    console.log(
+                        `      registeredWithSDK: ${loserPlayer.registeredWithSDK}`
+                    );
                     if (loserPlayer.registeredWithSDK) {
-                        console.log(`      ✅ Player WAS registered via reportPlayerJoin`);
+                        console.log(
+                            `      ✅ Player WAS registered via reportPlayerJoin`
+                        );
                     } else {
-                        console.log(`      ❌ Player was NOT registered via reportPlayerJoin`);
-                        console.log(`      → This will likely cause HTTP 400 error`);
+                        console.log(
+                            `      ❌ Player was NOT registered via reportPlayerJoin`
+                        );
+                        console.log(
+                            `      → This will likely cause HTTP 400 error`
+                        );
                     }
 
                     // Summary
                     const matchStarted = !!match.startedAt;
-                    const allPlayersRegistered = winnerPlayer.registeredWithSDK && loserPlayer.registeredWithSDK;
+                    const allPlayersRegistered =
+                        winnerPlayer.registeredWithSDK &&
+                        loserPlayer.registeredWithSDK;
                     console.log(`\n📊 SUMMARY:`);
-                    console.log(`   Match started: ${matchStarted ? '✅ YES' : '❌ NO'}`);
-                    console.log(`   All players registered: ${allPlayersRegistered ? '✅ YES' : '❌ NO'}`);
+                    console.log(
+                        `   Match started: ${matchStarted ? "✅ YES" : "❌ NO"}`
+                    );
+                    console.log(
+                        `   All players registered: ${
+                            allPlayersRegistered ? "✅ YES" : "❌ NO"
+                        }`
+                    );
                     if (!matchStarted || !allPlayersRegistered) {
-                        console.log(`\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`);
+                        console.log(
+                            `\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`
+                        );
                     } else {
-                        console.log(`\n✅ All checks passed - SDK call should succeed`);
+                        console.log(
+                            `\n✅ All checks passed - SDK call should succeed`
+                        );
                     }
                     console.log(`${"═".repeat(60)}\n`);
 
@@ -987,48 +1178,90 @@ io.on("connection", (socket: Socket) => {
                     // DIAGNOSTIC: Check for common HTTP 400 error causes (DRAW)
                     // ═══════════════════════════════════════════════════════════════
                     console.log(`\n${"═".repeat(60)}`);
-                    console.log(`🔎 PRE-FLIGHT CHECK (DRAW): Diagnosing potential HTTP 400 causes`);
+                    console.log(
+                        `🔎 PRE-FLIGHT CHECK (DRAW): Diagnosing potential HTTP 400 causes`
+                    );
                     console.log(`${"═".repeat(60)}`);
 
                     // Check 1: Match ID exists on platform
                     console.log(`\n1️⃣ MATCH ID CHECK:`);
                     console.log(`   Match ID: "${match.id}"`);
-                    console.log(`   → This ID must exist on the platform (created via admin panel)`);
-                    console.log(`   → If HTTP 400: Verify this match ID exists in the admin dashboard`);
+                    console.log(
+                        `   → This ID must exist on the platform (created via admin panel)`
+                    );
+                    console.log(
+                        `   → If HTTP 400: Verify this match ID exists in the admin dashboard`
+                    );
 
                     // Check 2: Match was started via reportMatchStart
                     console.log(`\n2️⃣ MATCH STARTED CHECK:`);
-                    console.log(`   match.startedAt: ${match.startedAt ? match.startedAt.toISOString() : 'null'}`);
+                    console.log(
+                        `   match.startedAt: ${
+                            match.startedAt
+                                ? match.startedAt.toISOString()
+                                : "null"
+                        }`
+                    );
                     if (match.startedAt) {
-                        console.log(`   ✅ Match WAS started via reportMatchStart`);
+                        console.log(
+                            `   ✅ Match WAS started via reportMatchStart`
+                        );
                     } else {
-                        console.log(`   ❌ Match was NOT started via reportMatchStart`);
-                        console.log(`   → This will likely cause HTTP 400 error`);
+                        console.log(
+                            `   ❌ Match was NOT started via reportMatchStart`
+                        );
+                        console.log(
+                            `   → This will likely cause HTTP 400 error`
+                        );
                     }
 
                     // Check 3: Players were registered via reportPlayerJoin
                     console.log(`\n3️⃣ PLAYERS REGISTERED CHECK:`);
                     playersArray.forEach((p, i) => {
-                        console.log(`   Player ${i + 1} (${p.username}, id=${p.id}):`);
-                        console.log(`      registeredWithSDK: ${p.registeredWithSDK}`);
+                        console.log(
+                            `   Player ${i + 1} (${p.username}, id=${p.id}):`
+                        );
+                        console.log(
+                            `      registeredWithSDK: ${p.registeredWithSDK}`
+                        );
                         if (p.registeredWithSDK) {
-                            console.log(`      ✅ Player WAS registered via reportPlayerJoin`);
+                            console.log(
+                                `      ✅ Player WAS registered via reportPlayerJoin`
+                            );
                         } else {
-                            console.log(`      ❌ Player was NOT registered via reportPlayerJoin`);
-                            console.log(`      → This will likely cause HTTP 400 error`);
+                            console.log(
+                                `      ❌ Player was NOT registered via reportPlayerJoin`
+                            );
+                            console.log(
+                                `      → This will likely cause HTTP 400 error`
+                            );
                         }
                     });
 
                     // Summary
                     const matchStartedDraw = !!match.startedAt;
-                    const allPlayersRegisteredDraw = playersArray.every(p => p.registeredWithSDK);
+                    const allPlayersRegisteredDraw = playersArray.every(
+                        (p) => p.registeredWithSDK
+                    );
                     console.log(`\n📊 SUMMARY:`);
-                    console.log(`   Match started: ${matchStartedDraw ? '✅ YES' : '❌ NO'}`);
-                    console.log(`   All players registered: ${allPlayersRegisteredDraw ? '✅ YES' : '❌ NO'}`);
+                    console.log(
+                        `   Match started: ${
+                            matchStartedDraw ? "✅ YES" : "❌ NO"
+                        }`
+                    );
+                    console.log(
+                        `   All players registered: ${
+                            allPlayersRegisteredDraw ? "✅ YES" : "❌ NO"
+                        }`
+                    );
                     if (!matchStartedDraw || !allPlayersRegisteredDraw) {
-                        console.log(`\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`);
+                        console.log(
+                            `\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`
+                        );
                     } else {
-                        console.log(`\n✅ All checks passed - SDK call should succeed`);
+                        console.log(
+                            `\n✅ All checks passed - SDK call should succeed`
+                        );
                     }
                     console.log(`${"═".repeat(60)}\n`);
 
