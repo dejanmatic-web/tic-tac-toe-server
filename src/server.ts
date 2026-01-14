@@ -606,20 +606,28 @@ io.on("connection", (socket: Socket) => {
                     );
 
                     // Prepare report data with parsed numeric IDs
+                    // Schema expects: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }
                     const reportData = {
                         players: [
                             {
-                                id: winnerId,
-                                score: 1,
-                                isWinner: true,
+                                id: winnerId,    // positive integer
+                                score: 1,        // integer
+                                isWinner: true,  // boolean
                             },
                             {
-                                id: loserId,
-                                score: 0,
-                                isWinner: false,
+                                id: loserId,     // positive integer
+                                score: 0,        // integer
+                                isWinner: false, // boolean
                             },
                         ],
                     };
+                    
+                    // Validate types match schema before sending
+                    console.log(`📋 Payload validation (POST /:matchId/finish):`);
+                    console.log(`   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`);
+                    reportData.players.forEach((p, i) => {
+                        console.log(`   Player[${i}]: id=${p.id} (${typeof p.id}, positive=${p.id > 0}), score=${p.score} (${typeof p.score}), isWinner=${p.isWinner} (${typeof p.isWinner})`);
+                    });
 
                     console.log(
                         `📤 Calling gameSDK.reportMatchResult(${match.id},`,
@@ -669,7 +677,7 @@ io.on("connection", (socket: Socket) => {
                     // Log the exact payload being sent
                     console.log(`🌐 SDK CALL: reportMatchResult`);
                     console.log(
-                        `   → Endpoint: POST /matches/${match.id}/result`
+                        `   → Endpoint: POST /matches/${match.id}/finish`
                     );
                     console.log(`   → Params:`);
                     console.log(`      matchId: "${match.id}"`);
@@ -773,6 +781,7 @@ io.on("connection", (socket: Socket) => {
                 } else {
                     // SDK requires positive numbers for player IDs
                     // Parse player IDs as integers and convert to numbers
+                    // Schema expects: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }
                     const reportData = {
                         players: playersArray.map((p) => {
                             const playerIdParsed = parseInt(p.id, 10);
@@ -781,9 +790,9 @@ io.on("connection", (socket: Socket) => {
                                     ? 1
                                     : playerIdParsed;
                             return {
-                                id: playerId,
-                                score: 0,
-                                isWinner: false,
+                                id: playerId,    // positive integer
+                                score: 0,        // integer
+                                isWinner: false, // boolean
                             };
                         }),
                     };
@@ -793,6 +802,14 @@ io.on("connection", (socket: Socket) => {
                         JSON.stringify(reportData, null, 2),
                         `)`
                     );
+                    
+                    // Validate types match schema before sending
+                    console.log(`📋 Payload validation (POST /:matchId/finish - draw):`);
+                    console.log(`   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`);
+                    reportData.players.forEach((p, i) => {
+                        console.log(`   Player[${i}]: id=${p.id} (${typeof p.id}, positive=${p.id > 0}), score=${p.score} (${typeof p.score}), isWinner=${p.isWinner} (${typeof p.isWinner})`);
+                    });
+                    
                     console.log(
                         `   Player IDs:`,
                         playersArray
@@ -831,7 +848,7 @@ io.on("connection", (socket: Socket) => {
 
                     console.log(`🌐 SDK CALL: reportMatchResult (draw)`);
                     console.log(
-                        `   → Endpoint: POST /matches/${match.id}/result`
+                        `   → Endpoint: POST /matches/${match.id}/finish`
                     );
                     console.log(`   → Params:`);
                     console.log(`      matchId: "${match.id}"`);
