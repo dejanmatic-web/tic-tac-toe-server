@@ -254,20 +254,14 @@ io.on("connection", (socket: Socket) => {
                 // Step 5: Report player join (only for new players, not reconnects)
                 if (!isReconnect) {
                     try {
-                        // Convert player ID to number for consistency with reportMatchResult
-                        // SDK expects consistent format between reportPlayerJoin and reportMatchResult
-                        const playerIdNum = Number(player.id);
-                        const playerIdForSDK =
-                            isNaN(playerIdNum) || playerIdNum <= 0
-                                ? Number(playerIdentity.id) || 1
-                                : Math.floor(Math.abs(playerIdNum));
-
+                        // reportPlayerJoin expects a string, reportMatchResult expects a number
+                        // Use the original playerIdentity.id (which is a string) for reportPlayerJoin
                         await gameSDK.reportPlayerJoin(
                             matchId,
-                            playerIdForSDK as any
+                            playerIdentity.id
                         );
                         console.log(
-                            `✅ Player ${player.id} (${playerIdForSDK}) joined match ${matchId}`
+                            `✅ Player ${player.id} joined match ${matchId}`
                         );
                     } catch (error: any) {
                         // Log but don't block - SDK reporting is not critical
