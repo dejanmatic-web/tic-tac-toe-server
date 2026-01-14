@@ -176,6 +176,14 @@ io.on("connection", (socket: Socket) => {
                 console.log(`🔐 Authenticating player for match ${matchId}...`);
 
                 // Step 1: Validate player token with platform
+                console.log(`🌐 SDK CALL: validatePlayerToken`);
+                console.log(`   → Endpoint: POST /auth/validate`);
+                console.log(
+                    `   → Params: { token: "${token.substring(
+                        0,
+                        20
+                    )}..." (length: ${token.length}) }`
+                );
                 const playerIdentity = await gameSDK.validatePlayerToken(token);
 
                 console.log(
@@ -239,6 +247,11 @@ io.on("connection", (socket: Socket) => {
                     !match.startedAt
                 ) {
                     try {
+                        console.log(`🌐 SDK CALL: reportMatchStart`);
+                        console.log(
+                            `   → Endpoint: POST /matches/${matchId}/start`
+                        );
+                        console.log(`   → Params: { matchId: "${matchId}" }`);
                         await gameSDK.reportMatchStart(matchId);
                         match.startedAt = new Date();
                         console.log(`✅ Match ${matchId} started`);
@@ -263,6 +276,15 @@ io.on("connection", (socket: Socket) => {
                                 `⚠️ Match ${matchId} not started yet, starting now before player join...`
                             );
                             try {
+                                console.log(
+                                    `🌐 SDK CALL: reportMatchStart (before player join)`
+                                );
+                                console.log(
+                                    `   → Endpoint: POST /matches/${matchId}/start`
+                                );
+                                console.log(
+                                    `   → Params: { matchId: "${matchId}" }`
+                                );
                                 await gameSDK.reportMatchStart(matchId);
                                 match.startedAt = new Date();
                                 console.log(
@@ -279,6 +301,15 @@ io.on("connection", (socket: Socket) => {
 
                         // reportPlayerJoin expects a string, reportMatchResult expects a number
                         // Use the original playerIdentity.id (which is a string) for reportPlayerJoin
+                        console.log(`🌐 SDK CALL: reportPlayerJoin`);
+                        console.log(
+                            `   → Endpoint: POST /matches/${matchId}/players`
+                        );
+                        console.log(
+                            `   → Params: { matchId: "${matchId}", playerId: "${
+                                playerIdentity.id
+                            }" (type: ${typeof playerIdentity.id}) }`
+                        );
                         await gameSDK.reportPlayerJoin(
                             matchId,
                             playerIdentity.id
@@ -303,9 +334,24 @@ io.on("connection", (socket: Socket) => {
                             );
                             try {
                                 if (!match.startedAt) {
+                                    console.log(
+                                        `🌐 SDK CALL: reportMatchStart (retry)`
+                                    );
+                                    console.log(
+                                        `   → Endpoint: POST /matches/${matchId}/start`
+                                    );
                                     await gameSDK.reportMatchStart(matchId);
                                     match.startedAt = new Date();
                                 }
+                                console.log(
+                                    `🌐 SDK CALL: reportPlayerJoin (retry)`
+                                );
+                                console.log(
+                                    `   → Endpoint: POST /matches/${matchId}/players`
+                                );
+                                console.log(
+                                    `   → Params: { matchId: "${matchId}", playerId: "${playerIdentity.id}" }`
+                                );
                                 await gameSDK.reportPlayerJoin(
                                     matchId,
                                     playerIdentity.id
@@ -597,6 +643,12 @@ io.on("connection", (socket: Socket) => {
                             `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`
                         );
                         try {
+                            console.log(
+                                `🌐 SDK CALL: reportMatchStart (before result)`
+                            );
+                            console.log(
+                                `   → Endpoint: POST /matches/${match.id}/start`
+                            );
                             await gameSDK.reportMatchStart(match.id);
                             match.startedAt = new Date();
                             console.log(
@@ -611,50 +663,25 @@ io.on("connection", (socket: Socket) => {
                         }
                     }
 
-                    // Ensure both players are registered before reporting results
-                    // Try to register them if they weren't registered earlier
-                    console.log(
-                        `🔍 Verifying both players are registered before reporting results...`
-                    );
-                    const playersToRegister = [winnerPlayer, loserPlayer];
-                    for (const p of playersToRegister) {
-                        try {
-                            // Try to register player (this will fail silently if already registered)
-                            // We use the original playerIdentity.id format (string) for reportPlayerJoin
-                            // But we need to get it from somewhere - we'll use the stored player.id
-                            // Since player.id is String(playerIdentity.id), we can use it directly
-                            await gameSDK.reportPlayerJoin(match.id, p.id);
-                            console.log(
-                                `✅ Verified/Registered player ${p.id} (${p.username})`
-                            );
-                        } catch (registerError: any) {
-                            // If already registered, that's fine - just log
-                            if (
-                                registerError.message &&
-                                registerError.message.includes("already")
-                            ) {
-                                console.log(
-                                    `ℹ️ Player ${p.id} already registered`
-                                );
-                            } else {
-                                console.warn(
-                                    `⚠️ Could not register player ${p.id} before reporting result:`,
-                                    registerError.message
-                                );
-                                // Continue anyway - might still work
-                            }
-                        }
-                    }
+                    // Note: Players should already be registered during authentication via reportPlayerJoin
+                    // We don't re-verify here as it can cause "Wrong match ID" errors if the SDK state differs
 
                     // Log the exact payload being sent
-                    console.log(`📋 Final payload being sent to SDK:`);
-                    console.log(`   matchId: "${match.id}"`);
+                    console.log(`🌐 SDK CALL: reportMatchResult`);
                     console.log(
-                        `   reportData:`,
-                        JSON.stringify(reportData, null, 2)
+                        `   → Endpoint: POST /matches/${match.id}/result`
+                    );
+                    console.log(`   → Params:`);
+                    console.log(`      matchId: "${match.id}"`);
+                    console.log(
+                        `      reportData: ${JSON.stringify(
+                            reportData,
+                            null,
+                            2
+                        )}`
                     );
                     console.log(
-                        `   Player IDs in payload:`,
+                        `   → Player IDs in payload:`,
                         reportData.players.map((p) => ({
                             id: p.id,
                             type: typeof p.id,
@@ -716,8 +743,8 @@ io.on("connection", (socket: Socket) => {
                 }
             }, 60000); // Keep match data for 1 minute
         } else if (isBoardFull(match.board)) {
-            // Draw
-            match.status = "finished";
+            // Draw - don't set status to "finished" yet, will set after successful reporting
+            match.winner = null;
 
             console.log(
                 `📤 Attempting to report draw result to SDK for match ${match.id}`
@@ -780,6 +807,12 @@ io.on("connection", (socket: Socket) => {
                             `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`
                         );
                         try {
+                            console.log(
+                                `🌐 SDK CALL: reportMatchStart (before draw result)`
+                            );
+                            console.log(
+                                `   → Endpoint: POST /matches/${match.id}/start`
+                            );
                             await gameSDK.reportMatchStart(match.id);
                             match.startedAt = new Date();
                             console.log(
@@ -793,32 +826,29 @@ io.on("connection", (socket: Socket) => {
                         }
                     }
 
-                    // Ensure all players are registered before reporting results
+                    // Note: Players should already be registered during authentication via reportPlayerJoin
+                    // We don't re-verify here as it can cause "Wrong match ID" errors if the SDK state differs
+
+                    console.log(`🌐 SDK CALL: reportMatchResult (draw)`);
                     console.log(
-                        `🔍 Verifying all players are registered before reporting draw...`
+                        `   → Endpoint: POST /matches/${match.id}/result`
                     );
-                    for (const p of playersArray) {
-                        try {
-                            await gameSDK.reportPlayerJoin(match.id, p.id);
-                            console.log(
-                                `✅ Verified/Registered player ${p.id} (${p.username})`
-                            );
-                        } catch (registerError: any) {
-                            if (
-                                registerError.message &&
-                                registerError.message.includes("already")
-                            ) {
-                                console.log(
-                                    `ℹ️ Player ${p.id} already registered`
-                                );
-                            } else {
-                                console.warn(
-                                    `⚠️ Could not register player ${p.id} before reporting result:`,
-                                    registerError.message
-                                );
-                            }
-                        }
-                    }
+                    console.log(`   → Params:`);
+                    console.log(`      matchId: "${match.id}"`);
+                    console.log(
+                        `      reportData: ${JSON.stringify(
+                            reportData,
+                            null,
+                            2
+                        )}`
+                    );
+                    console.log(
+                        `   → Player IDs in payload:`,
+                        reportData.players.map((p) => ({
+                            id: p.id,
+                            type: typeof p.id,
+                        }))
+                    );
 
                     await gameSDK.reportMatchResult(match.id, reportData);
 
