@@ -256,7 +256,7 @@ io.on("connection", (socket: Socket) => {
                             `   → Endpoint: POST /matches/${matchId}/start`
                         );
                         console.log(`   → Params: { matchId: "${matchId}" }`);
-                        // await gameSDK.reportMatchStart(matchId);
+                        await gameSDK.reportMatchStart(matchId);
                         match.startedAt = new Date();
                         console.log(`✅ Match ${matchId} started`);
                     } catch (error: any) {
@@ -722,6 +722,62 @@ io.on("connection", (socket: Socket) => {
                     // Note: Players should already be registered during authentication via reportPlayerJoin
                     // We don't re-verify here as it can cause "Wrong match ID" errors if the SDK state differs
 
+                    // ═══════════════════════════════════════════════════════════════
+                    // DIAGNOSTIC: Check for common HTTP 400 error causes
+                    // ═══════════════════════════════════════════════════════════════
+                    console.log(`\n${"═".repeat(60)}`);
+                    console.log(`🔎 PRE-FLIGHT CHECK: Diagnosing potential HTTP 400 causes`);
+                    console.log(`${"═".repeat(60)}`);
+
+                    // Check 1: Match ID exists on platform
+                    // (We can't verify this directly, but we log the ID for manual checking)
+                    console.log(`\n1️⃣ MATCH ID CHECK:`);
+                    console.log(`   Match ID: "${match.id}"`);
+                    console.log(`   → This ID must exist on the platform (created via admin panel)`);
+                    console.log(`   → If HTTP 400: Verify this match ID exists in the admin dashboard`);
+
+                    // Check 2: Match was started via reportMatchStart
+                    console.log(`\n2️⃣ MATCH STARTED CHECK:`);
+                    console.log(`   match.startedAt: ${match.startedAt ? match.startedAt.toISOString() : 'null'}`);
+                    if (match.startedAt) {
+                        console.log(`   ✅ Match WAS started via reportMatchStart`);
+                    } else {
+                        console.log(`   ❌ Match was NOT started via reportMatchStart`);
+                        console.log(`   → This will likely cause HTTP 400 error`);
+                    }
+
+                    // Check 3: Players were registered via reportPlayerJoin
+                    console.log(`\n3️⃣ PLAYERS REGISTERED CHECK:`);
+                    console.log(`   Winner (${winnerPlayer.username}, id=${winnerPlayer.id}):`);
+                    console.log(`      registeredWithSDK: ${winnerPlayer.registeredWithSDK}`);
+                    if (winnerPlayer.registeredWithSDK) {
+                        console.log(`      ✅ Player WAS registered via reportPlayerJoin`);
+                    } else {
+                        console.log(`      ❌ Player was NOT registered via reportPlayerJoin`);
+                        console.log(`      → This will likely cause HTTP 400 error`);
+                    }
+                    console.log(`   Loser (${loserPlayer.username}, id=${loserPlayer.id}):`);
+                    console.log(`      registeredWithSDK: ${loserPlayer.registeredWithSDK}`);
+                    if (loserPlayer.registeredWithSDK) {
+                        console.log(`      ✅ Player WAS registered via reportPlayerJoin`);
+                    } else {
+                        console.log(`      ❌ Player was NOT registered via reportPlayerJoin`);
+                        console.log(`      → This will likely cause HTTP 400 error`);
+                    }
+
+                    // Summary
+                    const matchStarted = !!match.startedAt;
+                    const allPlayersRegistered = winnerPlayer.registeredWithSDK && loserPlayer.registeredWithSDK;
+                    console.log(`\n📊 SUMMARY:`);
+                    console.log(`   Match started: ${matchStarted ? '✅ YES' : '❌ NO'}`);
+                    console.log(`   All players registered: ${allPlayersRegistered ? '✅ YES' : '❌ NO'}`);
+                    if (!matchStarted || !allPlayersRegistered) {
+                        console.log(`\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`);
+                    } else {
+                        console.log(`\n✅ All checks passed - SDK call should succeed`);
+                    }
+                    console.log(`${"═".repeat(60)}\n`);
+
                     // Log the exact payload being sent
                     console.log(`🌐 SDK CALL: reportMatchResult`);
                     console.log(
@@ -926,6 +982,55 @@ io.on("connection", (socket: Socket) => {
 
                     // Note: Players should already be registered during authentication via reportPlayerJoin
                     // We don't re-verify here as it can cause "Wrong match ID" errors if the SDK state differs
+
+                    // ═══════════════════════════════════════════════════════════════
+                    // DIAGNOSTIC: Check for common HTTP 400 error causes (DRAW)
+                    // ═══════════════════════════════════════════════════════════════
+                    console.log(`\n${"═".repeat(60)}`);
+                    console.log(`🔎 PRE-FLIGHT CHECK (DRAW): Diagnosing potential HTTP 400 causes`);
+                    console.log(`${"═".repeat(60)}`);
+
+                    // Check 1: Match ID exists on platform
+                    console.log(`\n1️⃣ MATCH ID CHECK:`);
+                    console.log(`   Match ID: "${match.id}"`);
+                    console.log(`   → This ID must exist on the platform (created via admin panel)`);
+                    console.log(`   → If HTTP 400: Verify this match ID exists in the admin dashboard`);
+
+                    // Check 2: Match was started via reportMatchStart
+                    console.log(`\n2️⃣ MATCH STARTED CHECK:`);
+                    console.log(`   match.startedAt: ${match.startedAt ? match.startedAt.toISOString() : 'null'}`);
+                    if (match.startedAt) {
+                        console.log(`   ✅ Match WAS started via reportMatchStart`);
+                    } else {
+                        console.log(`   ❌ Match was NOT started via reportMatchStart`);
+                        console.log(`   → This will likely cause HTTP 400 error`);
+                    }
+
+                    // Check 3: Players were registered via reportPlayerJoin
+                    console.log(`\n3️⃣ PLAYERS REGISTERED CHECK:`);
+                    playersArray.forEach((p, i) => {
+                        console.log(`   Player ${i + 1} (${p.username}, id=${p.id}):`);
+                        console.log(`      registeredWithSDK: ${p.registeredWithSDK}`);
+                        if (p.registeredWithSDK) {
+                            console.log(`      ✅ Player WAS registered via reportPlayerJoin`);
+                        } else {
+                            console.log(`      ❌ Player was NOT registered via reportPlayerJoin`);
+                            console.log(`      → This will likely cause HTTP 400 error`);
+                        }
+                    });
+
+                    // Summary
+                    const matchStartedDraw = !!match.startedAt;
+                    const allPlayersRegisteredDraw = playersArray.every(p => p.registeredWithSDK);
+                    console.log(`\n📊 SUMMARY:`);
+                    console.log(`   Match started: ${matchStartedDraw ? '✅ YES' : '❌ NO'}`);
+                    console.log(`   All players registered: ${allPlayersRegisteredDraw ? '✅ YES' : '❌ NO'}`);
+                    if (!matchStartedDraw || !allPlayersRegisteredDraw) {
+                        console.log(`\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`);
+                    } else {
+                        console.log(`\n✅ All checks passed - SDK call should succeed`);
+                    }
+                    console.log(`${"═".repeat(60)}\n`);
 
                     console.log(`🌐 SDK CALL: reportMatchResult (draw)`);
                     console.log(
