@@ -493,6 +493,16 @@ io.on("connection", (socket: Socket) => {
                             ? 1
                             : loserIdParsed;
 
+                    console.log(
+                        `📤 Preparing to report match result for match ${match.id}`
+                    );
+                    console.log(
+                        `   Winner: ${winnerPlayer.username} (ID: "${winnerPlayer.id}" -> ${winnerId})`
+                    );
+                    console.log(
+                        `   Loser: ${loserPlayer.username} (ID: "${loserPlayer.id}" -> ${loserId})`
+                    );
+
                     const reportData = {
                         players: [
                             {
@@ -513,21 +523,16 @@ io.on("connection", (socket: Socket) => {
                         JSON.stringify(reportData, null, 2),
                         `)`
                     );
-                    console.log(
-                        `   Winner player ID: "${
-                            winnerPlayer.id
-                        }" (type: ${typeof winnerPlayer.id})`
-                    );
-                    console.log(
-                        `   Loser player ID: "${
-                            loserPlayer.id
-                        }" (type: ${typeof loserPlayer.id})`
-                    );
                     console.log(`   Match ID: "${match.id}"`);
-                    console.log(`   Full request payload:`, {
-                        matchId: match.id,
-                        players: reportData.players,
-                    });
+                    console.log(
+                        `   Winner ID: ${winnerId} (parsed from "${winnerPlayer.id}")`
+                    );
+                    console.log(
+                        `   Loser ID: ${loserId} (parsed from "${loserPlayer.id}")`
+                    );
+                    console.log(
+                        `   Verifying IDs are valid numbers: winnerId=${winnerId} (${typeof winnerId}), loserId=${loserId} (${typeof loserId})`
+                    );
 
                     // Ensure match was started before reporting result
                     if (!match.startedAt) {
