@@ -479,17 +479,19 @@ io.on("connection", (socket: Socket) => {
                     );
                 } else {
                     // SDK requires positive numbers for player IDs
-                    // Convert to numbers - use Math.abs to ensure positive, fallback to 1 if invalid
-                    const winnerIdNum = Number(winnerPlayer.id);
-                    const loserIdNum = Number(loserPlayer.id);
+                    // Parse player IDs as integers and convert to numbers
+                    const winnerIdParsed = parseInt(winnerPlayer.id, 10);
+                    const loserIdParsed = parseInt(loserPlayer.id, 10);
+
+                    // Ensure valid positive integers
                     const winnerId =
-                        isNaN(winnerIdNum) || winnerIdNum <= 0
+                        isNaN(winnerIdParsed) || winnerIdParsed <= 0
                             ? 1
-                            : Math.floor(Math.abs(winnerIdNum));
+                            : winnerIdParsed;
                     const loserId =
-                        isNaN(loserIdNum) || loserIdNum <= 0
+                        isNaN(loserIdParsed) || loserIdParsed <= 0
                             ? 1
-                            : Math.floor(Math.abs(loserIdNum));
+                            : loserIdParsed;
 
                     const reportData = {
                         players: [
@@ -626,14 +628,14 @@ io.on("connection", (socket: Socket) => {
                     );
                 } else {
                     // SDK requires positive numbers for player IDs
-                    // Convert to numbers - use Math.abs to ensure positive, fallback to 1 if invalid
+                    // Parse player IDs as integers and convert to numbers
                     const reportData = {
                         players: playersArray.map((p) => {
-                            const playerIdNum = Number(p.id);
+                            const playerIdParsed = parseInt(p.id, 10);
                             const playerId =
-                                isNaN(playerIdNum) || playerIdNum <= 0
+                                isNaN(playerIdParsed) || playerIdParsed <= 0
                                     ? 1
-                                    : Math.floor(Math.abs(playerIdNum));
+                                    : playerIdParsed;
                             return {
                                 id: playerId,
                                 score: 0,
