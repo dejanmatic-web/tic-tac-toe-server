@@ -608,6 +608,41 @@ io.on("connection", (socket: Socket) => {
                         }
                     }
 
+                    // Ensure both players are registered before reporting results
+                    // Try to register them if they weren't registered earlier
+                    console.log(
+                        `🔍 Verifying both players are registered before reporting results...`
+                    );
+                    const playersToRegister = [winnerPlayer, loserPlayer];
+                    for (const p of playersToRegister) {
+                        try {
+                            // Try to register player (this will fail silently if already registered)
+                            // We use the original playerIdentity.id format (string) for reportPlayerJoin
+                            // But we need to get it from somewhere - we'll use the stored player.id
+                            // Since player.id is String(playerIdentity.id), we can use it directly
+                            await gameSDK.reportPlayerJoin(match.id, p.id);
+                            console.log(
+                                `✅ Verified/Registered player ${p.id} (${p.username})`
+                            );
+                        } catch (registerError: any) {
+                            // If already registered, that's fine - just log
+                            if (
+                                registerError.message &&
+                                registerError.message.includes("already")
+                            ) {
+                                console.log(
+                                    `ℹ️ Player ${p.id} already registered`
+                                );
+                            } else {
+                                console.warn(
+                                    `⚠️ Could not register player ${p.id} before reporting result:`,
+                                    registerError.message
+                                );
+                                // Continue anyway - might still work
+                            }
+                        }
+                    }
+
                     await gameSDK.reportMatchResult(match.id, reportData);
 
                     console.log(
@@ -715,6 +750,52 @@ io.on("connection", (socket: Socket) => {
                             .join(", ")
                     );
                     console.log(`   Match ID: "${match.id}"`);
+
+                    // Ensure match was started before reporting result
+                    if (!match.startedAt) {
+                        console.warn(
+                            `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`
+                        );
+                        try {
+                            await gameSDK.reportMatchStart(match.id);
+                            match.startedAt = new Date();
+                            console.log(
+                                `✅ Match ${match.id} started successfully`
+                            );
+                        } catch (startError: any) {
+                            console.error(
+                                `❌ Failed to start match before reporting result:`,
+                                startError.message
+                            );
+                        }
+                    }
+
+                    // Ensure all players are registered before reporting results
+                    console.log(
+                        `🔍 Verifying all players are registered before reporting draw...`
+                    );
+                    for (const p of playersArray) {
+                        try {
+                            await gameSDK.reportPlayerJoin(match.id, p.id);
+                            console.log(
+                                `✅ Verified/Registered player ${p.id} (${p.username})`
+                            );
+                        } catch (registerError: any) {
+                            if (
+                                registerError.message &&
+                                registerError.message.includes("already")
+                            ) {
+                                console.log(
+                                    `ℹ️ Player ${p.id} already registered`
+                                );
+                            } else {
+                                console.warn(
+                                    `⚠️ Could not register player ${p.id} before reporting result:`,
+                                    registerError.message
+                                );
+                            }
+                        }
+                    }
 
                     await gameSDK.reportMatchResult(match.id, reportData);
 
