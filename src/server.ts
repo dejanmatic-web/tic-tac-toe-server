@@ -643,6 +643,21 @@ io.on("connection", (socket: Socket) => {
                         }
                     }
 
+                    // Log the exact payload being sent
+                    console.log(`📋 Final payload being sent to SDK:`);
+                    console.log(`   matchId: "${match.id}"`);
+                    console.log(
+                        `   reportData:`,
+                        JSON.stringify(reportData, null, 2)
+                    );
+                    console.log(
+                        `   Player IDs in payload:`,
+                        reportData.players.map((p) => ({
+                            id: p.id,
+                            type: typeof p.id,
+                        }))
+                    );
+
                     await gameSDK.reportMatchResult(match.id, reportData);
 
                     console.log(
