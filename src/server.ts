@@ -231,6 +231,8 @@ io.on("connection", (socket: Socket) => {
                 currentPlayer = player;
                 currentMatchId = matchId;
 
+                // Step 4: Report match start FIRST (before player join)
+                // The SDK requires match to be started before players can join
                 if (
                     match.players.size === 1 &&
                     match.status === "waiting" &&
@@ -252,8 +254,29 @@ io.on("connection", (socket: Socket) => {
                 }
 
                 // Step 5: Report player join (only for new players, not reconnects)
+                // IMPORTANT: Match must be started before players can join
                 if (!isReconnect) {
                     try {
+                        // Ensure match is started before reporting player join
+                        if (!match.startedAt) {
+                            console.warn(
+                                `⚠️ Match ${matchId} not started yet, starting now before player join...`
+                            );
+                            try {
+                                await gameSDK.reportMatchStart(matchId);
+                                match.startedAt = new Date();
+                                console.log(
+                                    `✅ Match ${matchId} started before player join`
+                                );
+                            } catch (startError: any) {
+                                console.error(
+                                    `❌ Failed to start match before player join:`,
+                                    startError.message
+                                );
+                                // Continue anyway - might work
+                            }
+                        }
+
                         // reportPlayerJoin expects a string, reportMatchResult expects a number
                         // Use the original playerIdentity.id (which is a string) for reportPlayerJoin
                         await gameSDK.reportPlayerJoin(
@@ -270,6 +293,33 @@ io.on("connection", (socket: Socket) => {
                             error.message
                         );
                         console.error("   Error details:", error);
+                        // Try to retry if match wasn't started
+                        if (
+                            error.code === "MATCH_ERROR" &&
+                            error.message.includes("started first")
+                        ) {
+                            console.warn(
+                                `⚠️ Retrying player join after ensuring match is started...`
+                            );
+                            try {
+                                if (!match.startedAt) {
+                                    await gameSDK.reportMatchStart(matchId);
+                                    match.startedAt = new Date();
+                                }
+                                await gameSDK.reportPlayerJoin(
+                                    matchId,
+                                    playerIdentity.id
+                                );
+                                console.log(
+                                    `✅ Player ${player.id} joined match ${matchId} (retry succeeded)`
+                                );
+                            } catch (retryError: any) {
+                                console.error(
+                                    `❌ Retry also failed:`,
+                                    retryError.message
+                                );
+                            }
+                        }
                     }
                 }
 
