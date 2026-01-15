@@ -1011,6 +1011,23 @@ io.on("connection", (socket: Socket) => {
                     error.message
                 );
                 console.error("   Error code:", error.code);
+                
+                // HTTP 500 means server-side error on admin platform
+                if (error.statusCode === 500) {
+                    console.error(`
+${"═".repeat(60)}`);
+                    console.error(`   ⚠️ HTTP 500: Internal Server Error`);
+                    console.error(`   → This is a server-side error on the admin platform`);
+                    console.error(`   → Possible causes:`);
+                    console.error(`      1. Admin platform server is down or experiencing issues`);
+                    console.error(`      2. Database error on admin platform`);
+                    console.error(`      3. Match ID doesn't exist in admin platform database`);
+                    console.error(`      4. Players weren't properly registered in admin platform`);
+                    console.error(`      5. Admin platform has a bug processing the request`);
+                    console.error(`   → Check admin platform logs for more details`);
+                    console.error(`${"═".repeat(60)}
+`);
+                }
                 console.error("   Error statusCode:", error.statusCode);
                 if (error.response) {
                     console.error(
