@@ -259,7 +259,7 @@ io.on("connection", (socket: Socket) => {
                             `   → Endpoint: POST /matches/${matchId}/start`
                         );
                         console.log(`   → Params: { matchId: "${matchId}" }`);
-                        // await gameSDK.reportMatchStart(matchId);
+                        await gameSDK.reportMatchStart(matchId);
                         match.startedAt = new Date();
                         console.log(`✅ Match ${matchId} started`);
                     } catch (error: any) {
@@ -322,7 +322,7 @@ io.on("connection", (socket: Socket) => {
                                 console.log(
                                     `   → Params: { matchId: "${matchId}" }`
                                 );
-                                // await gameSDK.reportMatchStart(matchId);
+                                await gameSDK.reportMatchStart(matchId);
                                 match.startedAt = new Date();
                                 console.log(
                                     `✅ Match ${matchId} started before player join`
@@ -411,7 +411,7 @@ io.on("connection", (socket: Socket) => {
                                     console.log(
                                         `   → Endpoint: POST /matches/${matchId}/start`
                                     );
-                                    // await gameSDK.reportMatchStart(matchId);
+                                    await gameSDK.reportMatchStart(matchId);
                                     match.startedAt = new Date();
                                     console.log(
                                         `   ✅ Match started successfully on retry`
@@ -846,7 +846,7 @@ io.on("connection", (socket: Socket) => {
                             console.log(
                                 `   → Endpoint: POST /matches/${match.id}/start`
                             );
-                            // await gameSDK.reportMatchStart(match.id);
+                            await gameSDK.reportMatchStart(match.id);
                             match.startedAt = new Date();
                             console.log(
                                 `✅ Match ${match.id} started successfully`
@@ -1158,7 +1158,7 @@ io.on("connection", (socket: Socket) => {
                             console.log(
                                 `   → Endpoint: POST /matches/${match.id}/start`
                             );
-                            // await gameSDK.reportMatchStart(match.id);
+                            await gameSDK.reportMatchStart(match.id);
                             match.startedAt = new Date();
                             console.log(
                                 `✅ Match ${match.id} started successfully`
