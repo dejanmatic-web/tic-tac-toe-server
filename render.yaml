@@ -5,7 +5,8 @@ services:
     name: tic-tac-toe-server
     runtime: node
     rootDir: .
-    buildCommand: npm install && npm run build
+    # Install devDependencies so tsc and @types/* are available for the build
+    buildCommand: npm install --include=dev && npm run build
     # Use start.sh so dist/server.js is found even if Render's Root Directory is set to "src"
     startCommand: sh start.sh 2>/dev/null || sh ../start.sh
     envVars:
