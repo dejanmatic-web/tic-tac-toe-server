@@ -7,8 +7,8 @@ services:
     rootDir: .
     # Install devDependencies so tsc and @types/* are available for the build
     buildCommand: npm install --include=dev && npm run build
-    # Use start.sh so dist/server.js is found even if Render's Root Directory is set to "src"
-    startCommand: sh start.sh 2>/dev/null || sh ../start.sh
+    # Must run from repo root (rootDir: .). In Render dashboard, leave Root Directory blank.
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
