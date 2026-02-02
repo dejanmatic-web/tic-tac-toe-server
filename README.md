@@ -77,22 +77,37 @@ curl http://localhost:3000/health
 - `player_disconnected`: Other player disconnected
 - `error`: General error
 
-## Deployment
+## Deployment (Render + frontend on Vercel)
 
-This project is configured for deployment on Railway.
+This project is configured for deployment on **Render**. Use **CORS** so the frontend (on Vercel) can connect.
 
-1. Connect your GitHub repository to Railway
-2. Set environment variables in Railway dashboard
-3. Railway will automatically build and deploy
+### Deploy on Render
 
-### Required Environment Variables
+1. Push this repo to GitHub and create a **Web Service** on [Render](https://render.com) from the repo.
+2. **Build command:** `npm install && npm run build`
+3. **Start command:** `npm start`
+4. Set **Environment** variables in the Render dashboard (see below).
 
-- `GAMERSTAKE_API_KEY`: Your API key from admin panel
-- `ENVIRONMENT`: `production` or `staging`
-- `DEBUG`: `false` (must be false in production)
-- `PORT`: Railway sets this automatically
-- `NODE_ENV`: `production`
-- `CORS_ORIGIN`: Your GamerStake platform domain
+### CORS (frontend on Vercel)
+
+Set `CORS_ORIGIN` to your Vercel frontend URL so the browser allows Socket.io connections:
+
+- **Single origin:** `CORS_ORIGIN=https://your-app.vercel.app` (no trailing slash)
+- **Multiple origins** (e.g. production + preview): comma-separated  
+  `CORS_ORIGIN=https://your-app.vercel.app,https://your-app-git-main-you.vercel.app`
+
+After deploying the server on Render, set your **client**’s `NEXT_PUBLIC_SOCKET_URL` to the Render service URL (e.g. `https://tic-tac-toe-server.onrender.com`).
+
+### Required Environment Variables (Render)
+
+| Variable | Description |
+|----------|-------------|
+| `GAMERSTAKE_API_KEY` | Your API key from admin panel |
+| `ENVIRONMENT` | `production` or `staging` |
+| `DEBUG` | `false` in production |
+| `CORS_ORIGIN` | Your Vercel frontend URL (or comma-separated list) |
+| `PORT` | Set automatically by Render |
+| `NODE_ENV` | `production` |
 
 ## License
 

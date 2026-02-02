@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { GameSDK } from "@gamerstake/game-platform-sdk";
@@ -51,12 +52,21 @@ console.log(`   Debug mode: ${DEBUG && ENVIRONMENT !== "production"}`);
 // ============================================================================
 
 const app = express();
+
+// CORS: allow comma-separated origins (e.g. Vercel production + preview URLs)
+const corsOriginRaw = process.env.CORS_ORIGIN || "*";
+const corsOrigin =
+    corsOriginRaw === "*"
+        ? "*"
+        : corsOriginRaw.split(",").map((o) => o.trim()).filter(Boolean);
+
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.CORS_ORIGIN || "*",
+        origin: corsOrigin,
         credentials: true,
     },
     // Increase timeouts for stability

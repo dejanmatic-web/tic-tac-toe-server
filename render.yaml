@@ -1,0 +1,14 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Frontend on Vercel: set CORS_ORIGIN to your Vercel URL(s) in Render dashboard.
+services:
+  - type: web
+    name: tic-tac-toe-server
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set in Render dashboard:
+      # GAMERSTAKE_API_KEY, ENVIRONMENT, CORS_ORIGIN (your Vercel frontend URL)
+      # PORT is set automatically by Render
