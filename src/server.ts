@@ -58,7 +58,10 @@ const corsOriginRaw = process.env.CORS_ORIGIN || "*";
 const corsOrigin =
     corsOriginRaw === "*"
         ? "*"
-        : corsOriginRaw.split(",").map((o) => o.trim()).filter(Boolean);
+        : corsOriginRaw
+              .split(",")
+              .map((o) => o.trim())
+              .filter(Boolean);
 
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
@@ -191,18 +194,18 @@ io.on("connection", (socket: Socket) => {
                 console.log(
                     `   → Params: { token: "${token.substring(
                         0,
-                        20
-                    )}..." (length: ${token.length}) }`
+                        20,
+                    )}..." (length: ${token.length}) }`,
                 );
                 const playerIdentity = await gameSDK.validatePlayerToken(token);
 
                 console.log(
-                    `✅ Player authenticated: ${playerIdentity.username} (${playerIdentity.id})`
+                    `✅ Player authenticated: ${playerIdentity.username} (${playerIdentity.id})`,
                 );
                 console.log(
                     `   Player ID type: ${typeof playerIdentity.id}, value: ${JSON.stringify(
-                        playerIdentity.id
-                    )}`
+                        playerIdentity.id,
+                    )}`,
                 );
 
                 // Step 2: Get or create match
@@ -220,20 +223,20 @@ io.on("connection", (socket: Socket) => {
                 if (player) {
                     // Player reconnecting - update socket but keep symbol
                     console.log(
-                        `🔄 Player ${playerId} reconnecting (existing symbol: ${player.symbol})`
+                        `🔄 Player ${playerId} reconnecting (existing symbol: ${player.symbol})`,
                     );
                     console.log(
                         `   Old socket: ${
                             player.socket ? player.socket.id : "null"
-                        }, New socket: ${socket.id}`
+                        }, New socket: ${socket.id}`,
                     );
                     console.log(
-                        `   Previous registration status: registeredWithSDK=${player.registeredWithSDK}`
+                        `   Previous registration status: registeredWithSDK=${player.registeredWithSDK}`,
                     );
                     player.socket = socket;
                     isReconnect = true;
                     console.log(
-                        `   ✅ Socket updated for player ${playerId}, socket: ${player.socket.id}`
+                        `   ✅ Socket updated for player ${playerId}, socket: ${player.socket.id}`,
                     );
                 } else {
                     // New player joining
@@ -246,10 +249,10 @@ io.on("connection", (socket: Socket) => {
                     };
                     match.players.set(player.id, player);
                     console.log(
-                        `✅ Player ${playerId} (${player.username}) added to match ${matchId}, socket: ${socket.id}`
+                        `✅ Player ${playerId} (${player.username}) added to match ${matchId}, socket: ${socket.id}`,
                     );
                     console.log(
-                        `   → registeredWithSDK: false (not yet registered)`
+                        `   → registeredWithSDK: false (not yet registered)`,
                     );
                 }
 
@@ -266,7 +269,7 @@ io.on("connection", (socket: Socket) => {
                     try {
                         console.log(`🌐 SDK CALL: reportMatchStart`);
                         console.log(
-                            `   → Endpoint: POST /matches/${matchId}/start`
+                            `   → Endpoint: POST /matches/${matchId}/start`,
                         );
                         console.log(`   → Params: { matchId: "${matchId}" }`);
                         await gameSDK.reportMatchStart(matchId);
@@ -276,7 +279,7 @@ io.on("connection", (socket: Socket) => {
                         // SDK might complain about previous match - log but continue
                         console.error(
                             "❌ Failed to report match start:",
-                            error.message
+                            error.message,
                         );
                         // Don't block the game - SDK reporting is not critical for gameplay
                         match.startedAt = new Date(); // Mark as started anyway
@@ -294,12 +297,12 @@ io.on("connection", (socket: Socket) => {
                         isReconnect && !player.registeredWithSDK;
                     if (isRetryAttempt) {
                         console.log(
-                            `⚠️ Player ${player.id} reconnecting but was never registered - attempting registration now`
+                            `⚠️ Player ${player.id} reconnecting but was never registered - attempting registration now`,
                         );
                     }
                     console.log(`\n${"─".repeat(60)}`);
                     console.log(
-                        `🔍 PLAYER JOIN ATTEMPT: ${player.username} (${player.id})`
+                        `🔍 PLAYER JOIN ATTEMPT: ${player.username} (${player.id})`,
                     );
                     console.log(`   Match ID: "${matchId}"`);
                     console.log(`   Match status: ${match.status}`);
@@ -308,10 +311,10 @@ io.on("connection", (socket: Socket) => {
                             match.startedAt
                                 ? match.startedAt.toISOString()
                                 : "null"
-                        }`
+                        }`,
                     );
                     console.log(
-                        `   Current players in match: ${match.players.size}`
+                        `   Current players in match: ${match.players.size}`,
                     );
                     console.log(`   Is reconnect: ${isReconnect}`);
                     console.log(`${"─".repeat(60)}\n`);
@@ -320,27 +323,27 @@ io.on("connection", (socket: Socket) => {
                         // Ensure match is started before reporting player join
                         if (!match.startedAt) {
                             console.warn(
-                                `⚠️ Match ${matchId} not started yet, starting now before player join...`
+                                `⚠️ Match ${matchId} not started yet, starting now before player join...`,
                             );
                             try {
                                 console.log(
-                                    `🌐 SDK CALL: reportMatchStart (before player join)`
+                                    `🌐 SDK CALL: reportMatchStart (before player join)`,
                                 );
                                 console.log(
-                                    `   → Endpoint: POST /matches/${matchId}/start`
+                                    `   → Endpoint: POST /matches/${matchId}/start`,
                                 );
                                 console.log(
-                                    `   → Params: { matchId: "${matchId}" }`
+                                    `   → Params: { matchId: "${matchId}" }`,
                                 );
                                 await gameSDK.reportMatchStart(matchId);
                                 match.startedAt = new Date();
                                 console.log(
-                                    `✅ Match ${matchId} started before player join`
+                                    `✅ Match ${matchId} started before player join`,
                                 );
                             } catch (startError: any) {
                                 console.error(
                                     `❌ Failed to start match before player join:`,
-                                    startError.message
+                                    startError.message,
                                 );
                                 // Continue anyway - might work
                             }
@@ -350,43 +353,43 @@ io.on("connection", (socket: Socket) => {
                         // Use the original playerIdentity.id (which is a string) for reportPlayerJoin
                         console.log(`🌐 SDK CALL: reportPlayerJoin`);
                         console.log(
-                            `   → Endpoint: POST /matches/${matchId}/players`
+                            `   → Endpoint: POST /matches/${matchId}/players`,
                         );
                         console.log(
                             `   → Params: { matchId: "${matchId}", playerId: "${
                                 playerIdentity.id
-                            }" (type: ${typeof playerIdentity.id}) }`
+                            }" (type: ${typeof playerIdentity.id}) }`,
                         );
                         await gameSDK.reportPlayerJoin(
                             matchId,
-                            playerIdentity.id
+                            playerIdentity.id,
                         );
                         player.registeredWithSDK = true;
                         console.log(
-                            `✅ Player ${player.id} joined match ${matchId}`
+                            `✅ Player ${player.id} joined match ${matchId}`,
                         );
                         console.log(`   → registeredWithSDK: true ✓`);
                     } catch (error: any) {
                         // Log but don't block - SDK reporting is not critical
                         console.error(`\n${"─".repeat(60)}`);
                         console.error(
-                            `❌ FAILED to report player join for player ${player.id} (${player.username})`
+                            `❌ FAILED to report player join for player ${player.id} (${player.username})`,
                         );
                         console.error(`   Match ID: "${matchId}"`);
                         console.error(
                             `   Player ID: "${
                                 playerIdentity.id
-                            }" (type: ${typeof playerIdentity.id})`
+                            }" (type: ${typeof playerIdentity.id})`,
                         );
                         console.error(`   Error message: ${error.message}`);
                         console.error(`   Error code: ${error.code || "N/A"}`);
                         console.error(
-                            `   Error statusCode: ${error.statusCode || "N/A"}`
+                            `   Error statusCode: ${error.statusCode || "N/A"}`,
                         );
                         if (error.response) {
                             console.error(
                                 `   API Response:`,
-                                JSON.stringify(error.response, null, 2)
+                                JSON.stringify(error.response, null, 2),
                             );
                         }
                         console.error(
@@ -394,8 +397,8 @@ io.on("connection", (socket: Socket) => {
                             JSON.stringify(
                                 error,
                                 Object.getOwnPropertyNames(error),
-                                2
-                            )
+                                2,
+                            ),
                         );
                         if (error.stack) {
                             console.error(`   Stack trace:`, error.stack);
@@ -411,56 +414,56 @@ io.on("connection", (socket: Socket) => {
                             error.message.includes("started first")
                         ) {
                             console.warn(
-                                `⚠️ Retrying player join after ensuring match is started...`
+                                `⚠️ Retrying player join after ensuring match is started...`,
                             );
                             try {
                                 if (!match.startedAt) {
                                     console.log(
-                                        `🌐 SDK CALL: reportMatchStart (retry)`
+                                        `🌐 SDK CALL: reportMatchStart (retry)`,
                                     );
                                     console.log(
-                                        `   → Endpoint: POST /matches/${matchId}/start`
+                                        `   → Endpoint: POST /matches/${matchId}/start`,
                                     );
                                     await gameSDK.reportMatchStart(matchId);
                                     match.startedAt = new Date();
                                     console.log(
-                                        `   ✅ Match started successfully on retry`
+                                        `   ✅ Match started successfully on retry`,
                                     );
                                 }
                                 console.log(
-                                    `🌐 SDK CALL: reportPlayerJoin (retry)`
+                                    `🌐 SDK CALL: reportPlayerJoin (retry)`,
                                 );
                                 console.log(
-                                    `   → Endpoint: POST /matches/${matchId}/players`
+                                    `   → Endpoint: POST /matches/${matchId}/players`,
                                 );
                                 console.log(
-                                    `   → Params: { matchId: "${matchId}", playerId: "${playerIdentity.id}" }`
+                                    `   → Params: { matchId: "${matchId}", playerId: "${playerIdentity.id}" }`,
                                 );
                                 await gameSDK.reportPlayerJoin(
                                     matchId,
-                                    playerIdentity.id
+                                    playerIdentity.id,
                                 );
                                 player.registeredWithSDK = true;
                                 console.log(
-                                    `✅ Player ${player.id} joined match ${matchId} (retry succeeded)`
+                                    `✅ Player ${player.id} joined match ${matchId} (retry succeeded)`,
                                 );
                                 console.log(`   → registeredWithSDK: true ✓`);
                             } catch (retryError: any) {
                                 console.error(`\n${"─".repeat(60)}`);
                                 console.error(
-                                    `❌ RETRY FAILED for player ${player.id} (${player.username})`
+                                    `❌ RETRY FAILED for player ${player.id} (${player.username})`,
                                 );
                                 console.error(`   Match ID: "${matchId}"`);
                                 console.error(
-                                    `   Error message: ${retryError.message}`
+                                    `   Error message: ${retryError.message}`,
                                 );
                                 console.error(
-                                    `   Error code: ${retryError.code || "N/A"}`
+                                    `   Error code: ${retryError.code || "N/A"}`,
                                 );
                                 console.error(
                                     `   Error statusCode: ${
                                         retryError.statusCode || "N/A"
-                                    }`
+                                    }`,
                                 );
                                 if (retryError.response) {
                                     console.error(
@@ -468,8 +471,8 @@ io.on("connection", (socket: Socket) => {
                                         JSON.stringify(
                                             retryError.response,
                                             null,
-                                            2
-                                        )
+                                            2,
+                                        ),
                                     );
                                 }
                                 console.error(
@@ -477,13 +480,13 @@ io.on("connection", (socket: Socket) => {
                                     JSON.stringify(
                                         retryError,
                                         Object.getOwnPropertyNames(retryError),
-                                        2
-                                    )
+                                        2,
+                                    ),
                                 );
                                 console.error(`${"─".repeat(60)}\n`);
                                 player.registeredWithSDK = false;
                                 console.log(
-                                    `   → registeredWithSDK: false ✗ (registration failed after retry)`
+                                    `   → registeredWithSDK: false ✗ (registration failed after retry)`,
                                 );
                             }
                         } else {
@@ -491,10 +494,10 @@ io.on("connection", (socket: Socket) => {
                             console.error(
                                 `⚠️ Error is NOT about match not started. Actual error type: ${
                                     error.code || "unknown"
-                                }`
+                                }`,
                             );
                             console.error(
-                                `   This might be: Wrong match ID, Player already registered, Network error, etc.`
+                                `   This might be: Wrong match ID, Player already registered, Network error, etc.`,
                             );
                         }
                     }
@@ -524,19 +527,19 @@ io.on("connection", (socket: Socket) => {
                 // Log final registration status summary
                 console.log(`\n${"─".repeat(60)}`);
                 console.log(
-                    `📊 AUTHENTICATION SUMMARY for ${player.username} (${player.id})`
+                    `📊 AUTHENTICATION SUMMARY for ${player.username} (${player.id})`,
                 );
                 console.log(`   Match ID: "${matchId}"`);
                 console.log(`   Match status: ${match.status}`);
                 console.log(
                     `   Match startedAt: ${
                         match.startedAt ? match.startedAt.toISOString() : "null"
-                    }`
+                    }`,
                 );
                 console.log(
                     `   Player registeredWithSDK: ${
                         player.registeredWithSDK ? "✅ YES" : "❌ NO"
-                    }`
+                    }`,
                 );
                 console.log(`   Total players in match: ${match.players.size}`);
                 console.log(`   All players registration status:`);
@@ -546,7 +549,7 @@ io.on("connection", (socket: Socket) => {
                             p.registeredWithSDK
                                 ? "✅ registered"
                                 : "❌ NOT registered"
-                        }`
+                        }`,
                     );
                 });
                 console.log(`${"─".repeat(60)}\n`);
@@ -573,7 +576,7 @@ io.on("connection", (socket: Socket) => {
                         // Emit to each player individually with their specific symbol
                         playersArray.forEach((p) => {
                             console.log(
-                                `📣 Emitting match_started to ${p.username} (${p.id}) with yourSymbol: ${p.symbol}`
+                                `📣 Emitting match_started to ${p.username} (${p.id}) with yourSymbol: ${p.symbol}`,
                             );
                             p.socket.emit("match_started", {
                                 matchId,
@@ -589,7 +592,7 @@ io.on("connection", (socket: Socket) => {
                 // (Only for reconnections - not for initial match start, which is handled by match_started)
                 if (match.status === "playing" && !matchStarting) {
                     console.log(
-                        `📤 Sending game_state to reconnecting player ${player.id} with yourSymbol: ${player.symbol}`
+                        `📤 Sending game_state to reconnecting player ${player.id} with yourSymbol: ${player.symbol}`,
                     );
                     socket.emit("game_state", {
                         board: match.board,
@@ -599,7 +602,7 @@ io.on("connection", (socket: Socket) => {
                                 id: p.id,
                                 username: p.username,
                                 symbol: p.symbol,
-                            })
+                            }),
                         ),
                         yourSymbol: player.symbol, // Include for reconnecting players
                     });
@@ -609,7 +612,7 @@ io.on("connection", (socket: Socket) => {
                 socket.emit("auth_error", { message: error.message });
                 socket.disconnect();
             }
-        }
+        },
     );
 
     // --------------------------------------------------------------------------
@@ -641,19 +644,19 @@ io.on("connection", (socket: Socket) => {
 
         if (!match || !player) {
             console.error(
-                `❌ make_move: Player not found for socket ${socket.id}`
+                `❌ make_move: Player not found for socket ${socket.id}`,
             );
             console.error(`   Active matches: ${activeMatches.size}`);
             console.error(`   Checking sockets in matches:`);
             for (const [matchId, m] of activeMatches.entries()) {
                 console.error(
-                    `     Match ${matchId}: ${m.players.size} players`
+                    `     Match ${matchId}: ${m.players.size} players`,
                 );
                 for (const p of m.players.values()) {
                     console.error(
                         `       Player ${p.id}: socket=${
                             p.socket ? p.socket.id : "null"
-                        }`
+                        }`,
                     );
                 }
             }
@@ -701,7 +704,7 @@ io.on("connection", (socket: Socket) => {
 
             // Report match result
             console.log(
-                `📤 Attempting to report match result to SDK for match ${match.id}`
+                `📤 Attempting to report match result to SDK for match ${match.id}`,
             );
             console.log(`   SDK initialized: ${gameSDK.isInitialized()}`);
             console.log(
@@ -709,18 +712,18 @@ io.on("connection", (socket: Socket) => {
                     match.startedAt
                         ? "Yes (" + match.startedAt.toISOString() + ")"
                         : "No"
-                }`
+                }`,
             );
             console.log(
-                `   Match status: ${match.status} (will be set to finished after reporting)`
+                `   Match status: ${match.status} (will be set to finished after reporting)`,
             );
             console.log(`   Number of players: ${match.players.size}`);
             try {
                 const winnerPlayer = Array.from(match.players.values()).find(
-                    (p) => p.symbol === winner
+                    (p) => p.symbol === winner,
                 );
                 const loserPlayer = Array.from(match.players.values()).find(
-                    (p) => p.symbol !== winner
+                    (p) => p.symbol !== winner,
                 );
 
                 // Validate players exist before reporting
@@ -728,7 +731,7 @@ io.on("connection", (socket: Socket) => {
                     console.error(
                         `❌ Cannot report match result: Missing players. Winner: ${
                             winnerPlayer ? "found" : "missing"
-                        }, Loser: ${loserPlayer ? "found" : "missing"}`
+                        }, Loser: ${loserPlayer ? "found" : "missing"}`,
                     );
                     console.error(
                         `   Match players:`,
@@ -736,7 +739,7 @@ io.on("connection", (socket: Socket) => {
                             id: p.id,
                             username: p.username,
                             symbol: p.symbol,
-                        }))
+                        })),
                     );
                 } else {
                     // SDK requires positive numbers for player IDs
@@ -755,16 +758,16 @@ io.on("connection", (socket: Socket) => {
                             : loserIdParsed;
 
                     console.log(
-                        `📤 Preparing to report match result for match ${match.id}`
+                        `📤 Preparing to report match result for match ${match.id}`,
                     );
                     console.log(
-                        `   Winner: ${winnerPlayer.username} (ID: "${winnerPlayer.id}" -> ${winnerId})`
+                        `   Winner: ${winnerPlayer.username} (ID: "${winnerPlayer.id}" -> ${winnerId})`,
                     );
                     console.log(
-                        `   Loser: ${loserPlayer.username} (ID: "${loserPlayer.id}" -> ${loserId})`
+                        `   Loser: ${loserPlayer.username} (ID: "${loserPlayer.id}" -> ${loserId})`,
                     );
                     console.log(
-                        `   ⚠️ Note: Ensure both players were registered via reportPlayerJoin before reporting results`
+                        `   ⚠️ Note: Ensure both players were registered via reportPlayerJoin before reporting results`,
                     );
 
                     // Prepare report data with parsed numeric IDs
@@ -786,10 +789,10 @@ io.on("connection", (socket: Socket) => {
 
                     // Validate types match schema before sending
                     console.log(
-                        `📋 Payload validation (POST /:matchId/finish):`
+                        `📋 Payload validation (POST /:matchId/finish):`,
                     );
                     console.log(
-                        `   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`
+                        `   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`,
                     );
                     reportData.players.forEach((p, i) => {
                         console.log(
@@ -799,7 +802,7 @@ io.on("connection", (socket: Socket) => {
                                 p.score
                             } (${typeof p.score}), isWinner=${
                                 p.isWinner
-                            } (${typeof p.isWinner})`
+                            } (${typeof p.isWinner})`,
                         );
                     });
 
@@ -810,61 +813,61 @@ io.on("connection", (socket: Socket) => {
                             winnerPlayer.id
                         }): registeredWithSDK=${
                             winnerPlayer.registeredWithSDK
-                        } ${winnerPlayer.registeredWithSDK ? "✓" : "✗"}`
+                        } ${winnerPlayer.registeredWithSDK ? "✓" : "✗"}`,
                     );
                     console.log(
                         `   Loser (${loserPlayer.username}, id=${
                             loserPlayer.id
                         }): registeredWithSDK=${
                             loserPlayer.registeredWithSDK
-                        } ${loserPlayer.registeredWithSDK ? "✓" : "✗"}`
+                        } ${loserPlayer.registeredWithSDK ? "✓" : "✗"}`,
                     );
                     if (
                         !winnerPlayer.registeredWithSDK ||
                         !loserPlayer.registeredWithSDK
                     ) {
                         console.warn(
-                            `⚠️ WARNING: Not all players are registered with SDK! This may cause HTTP 400 error.`
+                            `⚠️ WARNING: Not all players are registered with SDK! This may cause HTTP 400 error.`,
                         );
                     }
 
                     console.log(
                         `📤 Calling gameSDK.reportMatchResult(${match.id},`,
                         JSON.stringify(reportData, null, 2),
-                        `)`
+                        `)`,
                     );
                     console.log(`   Match ID: "${match.id}"`);
                     console.log(
-                        `   Winner ID: ${winnerId} (parsed from "${winnerPlayer.id}")`
+                        `   Winner ID: ${winnerId} (parsed from "${winnerPlayer.id}")`,
                     );
                     console.log(
-                        `   Loser ID: ${loserId} (parsed from "${loserPlayer.id}")`
+                        `   Loser ID: ${loserId} (parsed from "${loserPlayer.id}")`,
                     );
                     console.log(
-                        `   Verifying IDs are valid numbers: winnerId=${winnerId} (${typeof winnerId}), loserId=${loserId} (${typeof loserId})`
+                        `   Verifying IDs are valid numbers: winnerId=${winnerId} (${typeof winnerId}), loserId=${loserId} (${typeof loserId})`,
                     );
 
                     // Ensure match was started before reporting result
                     if (!match.startedAt) {
                         console.warn(
-                            `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`
+                            `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`,
                         );
                         try {
                             console.log(
-                                `🌐 SDK CALL: reportMatchStart (before result)`
+                                `🌐 SDK CALL: reportMatchStart (before result)`,
                             );
                             console.log(
-                                `   → Endpoint: POST /matches/${match.id}/start`
+                                `   → Endpoint: POST /matches/${match.id}/start`,
                             );
                             await gameSDK.reportMatchStart(match.id);
                             match.startedAt = new Date();
                             console.log(
-                                `✅ Match ${match.id} started successfully`
+                                `✅ Match ${match.id} started successfully`,
                             );
                         } catch (startError: any) {
                             console.error(
                                 `❌ Failed to start match before reporting result:`,
-                                startError.message
+                                startError.message,
                             );
                             // Continue anyway - SDK might allow reporting without explicit start
                         }
@@ -878,7 +881,7 @@ io.on("connection", (socket: Socket) => {
                     // ═══════════════════════════════════════════════════════════════
                     console.log(`\n${"═".repeat(60)}`);
                     console.log(
-                        `🔎 PRE-FLIGHT CHECK: Diagnosing potential HTTP 400 causes`
+                        `🔎 PRE-FLIGHT CHECK: Diagnosing potential HTTP 400 causes`,
                     );
                     console.log(`${"═".repeat(60)}`);
 
@@ -887,10 +890,10 @@ io.on("connection", (socket: Socket) => {
                     console.log(`\n1️⃣ MATCH ID CHECK:`);
                     console.log(`   Match ID: "${match.id}"`);
                     console.log(
-                        `   → This ID must exist on the platform (created via admin panel)`
+                        `   → This ID must exist on the platform (created via admin panel)`,
                     );
                     console.log(
-                        `   → If HTTP 400: Verify this match ID exists in the admin dashboard`
+                        `   → If HTTP 400: Verify this match ID exists in the admin dashboard`,
                     );
 
                     // Check 2: Match was started via reportMatchStart
@@ -900,57 +903,57 @@ io.on("connection", (socket: Socket) => {
                             match.startedAt
                                 ? match.startedAt.toISOString()
                                 : "null"
-                        }`
+                        }`,
                     );
                     if (match.startedAt) {
                         console.log(
-                            `   ✅ Match WAS started via reportMatchStart`
+                            `   ✅ Match WAS started via reportMatchStart`,
                         );
                     } else {
                         console.log(
-                            `   ❌ Match was NOT started via reportMatchStart`
+                            `   ❌ Match was NOT started via reportMatchStart`,
                         );
                         console.log(
-                            `   → This will likely cause HTTP 400 error`
+                            `   → This will likely cause HTTP 400 error`,
                         );
                     }
 
                     // Check 3: Players were registered via reportPlayerJoin
                     console.log(`\n3️⃣ PLAYERS REGISTERED CHECK:`);
                     console.log(
-                        `   Winner (${winnerPlayer.username}, id=${winnerPlayer.id}):`
+                        `   Winner (${winnerPlayer.username}, id=${winnerPlayer.id}):`,
                     );
                     console.log(
-                        `      registeredWithSDK: ${winnerPlayer.registeredWithSDK}`
+                        `      registeredWithSDK: ${winnerPlayer.registeredWithSDK}`,
                     );
                     if (winnerPlayer.registeredWithSDK) {
                         console.log(
-                            `      ✅ Player WAS registered via reportPlayerJoin`
+                            `      ✅ Player WAS registered via reportPlayerJoin`,
                         );
                     } else {
                         console.log(
-                            `      ❌ Player was NOT registered via reportPlayerJoin`
+                            `      ❌ Player was NOT registered via reportPlayerJoin`,
                         );
                         console.log(
-                            `      → This will likely cause HTTP 400 error`
+                            `      → This will likely cause HTTP 400 error`,
                         );
                     }
                     console.log(
-                        `   Loser (${loserPlayer.username}, id=${loserPlayer.id}):`
+                        `   Loser (${loserPlayer.username}, id=${loserPlayer.id}):`,
                     );
                     console.log(
-                        `      registeredWithSDK: ${loserPlayer.registeredWithSDK}`
+                        `      registeredWithSDK: ${loserPlayer.registeredWithSDK}`,
                     );
                     if (loserPlayer.registeredWithSDK) {
                         console.log(
-                            `      ✅ Player WAS registered via reportPlayerJoin`
+                            `      ✅ Player WAS registered via reportPlayerJoin`,
                         );
                     } else {
                         console.log(
-                            `      ❌ Player was NOT registered via reportPlayerJoin`
+                            `      ❌ Player was NOT registered via reportPlayerJoin`,
                         );
                         console.log(
-                            `      → This will likely cause HTTP 400 error`
+                            `      → This will likely cause HTTP 400 error`,
                         );
                     }
 
@@ -961,20 +964,20 @@ io.on("connection", (socket: Socket) => {
                         loserPlayer.registeredWithSDK;
                     console.log(`\n📊 SUMMARY:`);
                     console.log(
-                        `   Match started: ${matchStarted ? "✅ YES" : "❌ NO"}`
+                        `   Match started: ${matchStarted ? "✅ YES" : "❌ NO"}`,
                     );
                     console.log(
                         `   All players registered: ${
                             allPlayersRegistered ? "✅ YES" : "❌ NO"
-                        }`
+                        }`,
                     );
                     if (!matchStarted || !allPlayersRegistered) {
                         console.log(
-                            `\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`
+                            `\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`,
                         );
                     } else {
                         console.log(
-                            `\n✅ All checks passed - SDK call should succeed`
+                            `\n✅ All checks passed - SDK call should succeed`,
                         );
                     }
                     console.log(`${"═".repeat(60)}\n`);
@@ -982,7 +985,7 @@ io.on("connection", (socket: Socket) => {
                     // Log the exact payload being sent
                     console.log(`🌐 SDK CALL: reportMatchResult`);
                     console.log(
-                        `   → Endpoint: POST /matches/${match.id}/finish`
+                        `   → Endpoint: POST /matches/${match.id}/finish`,
                     );
                     console.log(`   → Params:`);
                     console.log(`      matchId: "${match.id}"`);
@@ -990,15 +993,15 @@ io.on("connection", (socket: Socket) => {
                         `      reportData: ${JSON.stringify(
                             reportData,
                             null,
-                            2
-                        )}`
+                            2,
+                        )}`,
                     );
                     console.log(
                         `   → Player IDs in payload:`,
                         reportData.players.map((p) => ({
                             id: p.id,
                             type: typeof p.id,
-                        }))
+                        })),
                     );
 
                     await gameSDK.reportMatchResult(match.id, reportData);
@@ -1007,10 +1010,10 @@ io.on("connection", (socket: Socket) => {
                     match.status = "finished";
 
                     console.log(
-                        `✅ Match ${match.id} finished. Winner: ${winnerPlayer.username} (${winnerPlayer.id})`
+                        `✅ Match ${match.id} finished. Winner: ${winnerPlayer.username} (${winnerPlayer.id})`,
                     );
                     console.log(
-                        `   ✅ Successfully reported to admin platform via SDK`
+                        `   ✅ Successfully reported to admin platform via SDK`,
                     );
                 }
             } catch (error: any) {
@@ -1018,23 +1021,35 @@ io.on("connection", (socket: Socket) => {
                 match.status = "finished";
                 console.error(
                     "❌ Failed to report match result to admin:",
-                    error.message
+                    error.message,
                 );
                 console.error("   Error code:", error.code);
-                
+
                 // HTTP 500 means server-side error on admin platform
                 if (error.statusCode === 500) {
                     console.error(`
 ${"═".repeat(60)}`);
                     console.error(`   ⚠️ HTTP 500: Internal Server Error`);
-                    console.error(`   → This is a server-side error on the admin platform`);
+                    console.error(
+                        `   → This is a server-side error on the admin platform`,
+                    );
                     console.error(`   → Possible causes:`);
-                    console.error(`      1. Admin platform server is down or experiencing issues`);
+                    console.error(
+                        `      1. Admin platform server is down or experiencing issues`,
+                    );
                     console.error(`      2. Database error on admin platform`);
-                    console.error(`      3. Match ID doesn't exist in admin platform database`);
-                    console.error(`      4. Players weren't properly registered in admin platform`);
-                    console.error(`      5. Admin platform has a bug processing the request`);
-                    console.error(`   → Check admin platform logs for more details`);
+                    console.error(
+                        `      3. Match ID doesn't exist in admin platform database`,
+                    );
+                    console.error(
+                        `      4. Players weren't properly registered in admin platform`,
+                    );
+                    console.error(
+                        `      5. Admin platform has a bug processing the request`,
+                    );
+                    console.error(
+                        `   → Check admin platform logs for more details`,
+                    );
                     console.error(`${"═".repeat(60)}
 `);
                 }
@@ -1042,12 +1057,12 @@ ${"═".repeat(60)}`);
                 if (error.response) {
                     console.error(
                         "   API Response:",
-                        JSON.stringify(error.response, null, 2)
+                        JSON.stringify(error.response, null, 2),
                     );
                 }
                 console.error(
                     "   Full error:",
-                    JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+                    JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
                 );
                 console.error("   Error stack:", error.stack);
                 // Re-throw to ensure we know about critical failures
@@ -1058,7 +1073,7 @@ ${"═".repeat(60)}`);
             console.log(
                 `📢 Notifying players that game finished. Winner: ${
                     match.winner || "Draw"
-                }`
+                }`,
             );
             io.to(match.id).emit("game_finished", {
                 winner: match.winner,
@@ -1077,7 +1092,7 @@ ${"═".repeat(60)}`);
             match.winner = null;
 
             console.log(
-                `📤 Attempting to report draw result to SDK for match ${match.id}`
+                `📤 Attempting to report draw result to SDK for match ${match.id}`,
             );
             console.log(`   SDK initialized: ${gameSDK.isInitialized()}`);
             try {
@@ -1086,11 +1101,11 @@ ${"═".repeat(60)}`);
                 // Validate we have players before reporting
                 if (playersArray.length === 0) {
                     console.error(
-                        `❌ Cannot report draw: No players in match ${match.id}`
+                        `❌ Cannot report draw: No players in match ${match.id}`,
                     );
                 } else if (playersArray.length < 2) {
                     console.error(
-                        `❌ Cannot report draw: Only ${playersArray.length} player(s) in match ${match.id}`
+                        `❌ Cannot report draw: Only ${playersArray.length} player(s) in match ${match.id}`,
                     );
                     console.error(
                         `   Players:`,
@@ -1098,7 +1113,7 @@ ${"═".repeat(60)}`);
                             id: p.id,
                             username: p.username,
                             symbol: p.symbol,
-                        }))
+                        })),
                     );
                 } else {
                     // SDK requires positive numbers for player IDs
@@ -1122,15 +1137,15 @@ ${"═".repeat(60)}`);
                     console.log(
                         `📤 Calling gameSDK.reportMatchResult(${match.id},`,
                         JSON.stringify(reportData, null, 2),
-                        `)`
+                        `)`,
                     );
 
                     // Validate types match schema before sending
                     console.log(
-                        `📋 Payload validation (POST /:matchId/finish - draw):`
+                        `📋 Payload validation (POST /:matchId/finish - draw):`,
                     );
                     console.log(
-                        `   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`
+                        `   Schema: { players: [{ id: positive int, score?: int, isWinner?: boolean }] }`,
                     );
                     reportData.players.forEach((p, i) => {
                         console.log(
@@ -1140,13 +1155,13 @@ ${"═".repeat(60)}`);
                                 p.score
                             } (${typeof p.score}), isWinner=${
                                 p.isWinner
-                            } (${typeof p.isWinner})`
+                            } (${typeof p.isWinner})`,
                         );
                     });
 
                     // Check if players are registered with SDK
                     console.log(
-                        `🔍 Checking player SDK registration status (draw):`
+                        `🔍 Checking player SDK registration status (draw):`,
                     );
                     let allRegistered = true;
                     playersArray.forEach((p) => {
@@ -1155,13 +1170,13 @@ ${"═".repeat(60)}`);
                                 p.id
                             }): registeredWithSDK=${p.registeredWithSDK} ${
                                 p.registeredWithSDK ? "✓" : "✗"
-                            }`
+                            }`,
                         );
                         if (!p.registeredWithSDK) allRegistered = false;
                     });
                     if (!allRegistered) {
                         console.warn(
-                            `⚠️ WARNING: Not all players are registered with SDK! This may cause HTTP 400 error.`
+                            `⚠️ WARNING: Not all players are registered with SDK! This may cause HTTP 400 error.`,
                         );
                     }
 
@@ -1169,31 +1184,31 @@ ${"═".repeat(60)}`);
                         `   Player IDs:`,
                         playersArray
                             .map((p) => `"${p.id}" (type: ${typeof p.id})`)
-                            .join(", ")
+                            .join(", "),
                     );
                     console.log(`   Match ID: "${match.id}"`);
 
                     // Ensure match was started before reporting result
                     if (!match.startedAt) {
                         console.warn(
-                            `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`
+                            `⚠️ Match ${match.id} was not started via SDK, attempting to start now...`,
                         );
                         try {
                             console.log(
-                                `🌐 SDK CALL: reportMatchStart (before draw result)`
+                                `🌐 SDK CALL: reportMatchStart (before draw result)`,
                             );
                             console.log(
-                                `   → Endpoint: POST /matches/${match.id}/start`
+                                `   → Endpoint: POST /matches/${match.id}/start`,
                             );
                             await gameSDK.reportMatchStart(match.id);
                             match.startedAt = new Date();
                             console.log(
-                                `✅ Match ${match.id} started successfully`
+                                `✅ Match ${match.id} started successfully`,
                             );
                         } catch (startError: any) {
                             console.error(
                                 `❌ Failed to start match before reporting result:`,
-                                startError.message
+                                startError.message,
                             );
                         }
                     }
@@ -1206,7 +1221,7 @@ ${"═".repeat(60)}`);
                     // ═══════════════════════════════════════════════════════════════
                     console.log(`\n${"═".repeat(60)}`);
                     console.log(
-                        `🔎 PRE-FLIGHT CHECK (DRAW): Diagnosing potential HTTP 400 causes`
+                        `🔎 PRE-FLIGHT CHECK (DRAW): Diagnosing potential HTTP 400 causes`,
                     );
                     console.log(`${"═".repeat(60)}`);
 
@@ -1214,10 +1229,10 @@ ${"═".repeat(60)}`);
                     console.log(`\n1️⃣ MATCH ID CHECK:`);
                     console.log(`   Match ID: "${match.id}"`);
                     console.log(
-                        `   → This ID must exist on the platform (created via admin panel)`
+                        `   → This ID must exist on the platform (created via admin panel)`,
                     );
                     console.log(
-                        `   → If HTTP 400: Verify this match ID exists in the admin dashboard`
+                        `   → If HTTP 400: Verify this match ID exists in the admin dashboard`,
                     );
 
                     // Check 2: Match was started via reportMatchStart
@@ -1227,18 +1242,18 @@ ${"═".repeat(60)}`);
                             match.startedAt
                                 ? match.startedAt.toISOString()
                                 : "null"
-                        }`
+                        }`,
                     );
                     if (match.startedAt) {
                         console.log(
-                            `   ✅ Match WAS started via reportMatchStart`
+                            `   ✅ Match WAS started via reportMatchStart`,
                         );
                     } else {
                         console.log(
-                            `   ❌ Match was NOT started via reportMatchStart`
+                            `   ❌ Match was NOT started via reportMatchStart`,
                         );
                         console.log(
-                            `   → This will likely cause HTTP 400 error`
+                            `   → This will likely cause HTTP 400 error`,
                         );
                     }
 
@@ -1246,21 +1261,21 @@ ${"═".repeat(60)}`);
                     console.log(`\n3️⃣ PLAYERS REGISTERED CHECK:`);
                     playersArray.forEach((p, i) => {
                         console.log(
-                            `   Player ${i + 1} (${p.username}, id=${p.id}):`
+                            `   Player ${i + 1} (${p.username}, id=${p.id}):`,
                         );
                         console.log(
-                            `      registeredWithSDK: ${p.registeredWithSDK}`
+                            `      registeredWithSDK: ${p.registeredWithSDK}`,
                         );
                         if (p.registeredWithSDK) {
                             console.log(
-                                `      ✅ Player WAS registered via reportPlayerJoin`
+                                `      ✅ Player WAS registered via reportPlayerJoin`,
                             );
                         } else {
                             console.log(
-                                `      ❌ Player was NOT registered via reportPlayerJoin`
+                                `      ❌ Player was NOT registered via reportPlayerJoin`,
                             );
                             console.log(
-                                `      → This will likely cause HTTP 400 error`
+                                `      → This will likely cause HTTP 400 error`,
                             );
                         }
                     });
@@ -1268,33 +1283,33 @@ ${"═".repeat(60)}`);
                     // Summary
                     const matchStartedDraw = !!match.startedAt;
                     const allPlayersRegisteredDraw = playersArray.every(
-                        (p) => p.registeredWithSDK
+                        (p) => p.registeredWithSDK,
                     );
                     console.log(`\n📊 SUMMARY:`);
                     console.log(
                         `   Match started: ${
                             matchStartedDraw ? "✅ YES" : "❌ NO"
-                        }`
+                        }`,
                     );
                     console.log(
                         `   All players registered: ${
                             allPlayersRegisteredDraw ? "✅ YES" : "❌ NO"
-                        }`
+                        }`,
                     );
                     if (!matchStartedDraw || !allPlayersRegisteredDraw) {
                         console.log(
-                            `\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`
+                            `\n⚠️  PREDICTION: HTTP 400 error is likely due to above issues`,
                         );
                     } else {
                         console.log(
-                            `\n✅ All checks passed - SDK call should succeed`
+                            `\n✅ All checks passed - SDK call should succeed`,
                         );
                     }
                     console.log(`${"═".repeat(60)}\n`);
 
                     console.log(`🌐 SDK CALL: reportMatchResult (draw)`);
                     console.log(
-                        `   → Endpoint: POST /matches/${match.id}/finish`
+                        `   → Endpoint: POST /matches/${match.id}/finish`,
                     );
                     console.log(`   → Params:`);
                     console.log(`      matchId: "${match.id}"`);
@@ -1302,15 +1317,15 @@ ${"═".repeat(60)}`);
                         `      reportData: ${JSON.stringify(
                             reportData,
                             null,
-                            2
-                        )}`
+                            2,
+                        )}`,
                     );
                     console.log(
                         `   → Player IDs in payload:`,
                         reportData.players.map((p) => ({
                             id: p.id,
                             type: typeof p.id,
-                        }))
+                        })),
                     );
 
                     await gameSDK.reportMatchResult(match.id, reportData);
@@ -1320,13 +1335,13 @@ ${"═".repeat(60)}`);
 
                     console.log(`✅ Match ${match.id} finished as a draw`);
                     console.log(
-                        `   ✅ Successfully reported to admin platform via SDK`
+                        `   ✅ Successfully reported to admin platform via SDK`,
                     );
                     console.log(
                         `   Players:`,
                         playersArray
                             .map((p) => `${p.username} (${p.id})`)
-                            .join(", ")
+                            .join(", "),
                     );
                 }
             } catch (error: any) {
@@ -1335,19 +1350,19 @@ ${"═".repeat(60)}`);
 
                 console.error(
                     "❌ Failed to report draw result to admin:",
-                    error.message
+                    error.message,
                 );
                 console.error("   Error code:", error.code);
                 console.error("   Error statusCode:", error.statusCode);
                 if (error.response) {
                     console.error(
                         "   API Response:",
-                        JSON.stringify(error.response, null, 2)
+                        JSON.stringify(error.response, null, 2),
                     );
                 }
                 console.error(
                     "   Full error:",
-                    JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+                    JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
                 );
                 console.error("   Error stack:", error.stack);
                 // Re-throw to ensure we know about critical failures
@@ -1397,7 +1412,7 @@ ${"═".repeat(60)}`);
                 if (player) {
                     player.socket = null as any; // Mark as disconnected
                     console.log(
-                        `📴 Player ${player.id} (${player.username}) marked as disconnected, symbol: ${player.symbol}`
+                        `📴 Player ${player.id} (${player.username}) marked as disconnected, symbol: ${player.symbol}`,
                     );
                 }
 
@@ -1419,7 +1434,7 @@ ${"═".repeat(60)}`);
                         // If player still has null socket after 30 seconds, they're really gone
                         if (playerCheck && playerCheck.socket === null) {
                             console.log(
-                                `⏰ Player ${disconnectPlayerId} didn't reconnect, removing from match`
+                                `⏰ Player ${disconnectPlayerId} didn't reconnect, removing from match`,
                             );
                             matchCheck.players.delete(disconnectPlayerId);
 
@@ -1428,19 +1443,19 @@ ${"═".repeat(60)}`);
                                 gameSDK
                                     .reportMatchError(
                                         disconnectMatchId!,
-                                        "Player disconnected permanently"
+                                        "Player disconnected permanently",
                                     )
                                     .catch(() => {}); // Silently ignore SDK errors
                             }
 
                             // Clean up if no connected players
                             const connectedPlayers = Array.from(
-                                matchCheck.players.values()
+                                matchCheck.players.values(),
                             ).filter((p) => p.socket !== null);
                             if (connectedPlayers.length === 0) {
                                 activeMatches.delete(disconnectMatchId!);
                                 console.log(
-                                    `🗑️ Match ${disconnectMatchId} cleaned up - no connected players`
+                                    `🗑️ Match ${disconnectMatchId} cleaned up - no connected players`,
                                 );
                             }
                         }
@@ -1480,7 +1495,7 @@ httpServer.on("error", (error: NodeJS.ErrnoException) => {
     if (error.code === "EADDRINUSE") {
         console.error(`❌ Port ${PORT} is already in use`);
         console.error(
-            "   Please stop the process using this port or use a different port"
+            "   Please stop the process using this port or use a different port",
         );
     } else {
         console.error("❌ Server error:", error);
