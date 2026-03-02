@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@gamerstake/game-platform-sdk':
-        specifier: ^1.0.5
-        version: 1.0.6(typescript@5.9.3)
+        specifier: ^1.0.7
+        version: 1.0.7(typescript@5.9.3)
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -99,8 +99,8 @@ packages:
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@gamerstake/game-platform-sdk@1.0.6':
-    resolution: {integrity: sha512-UPMr5mX+6HyQ0Twhq+g+fvvAkHNLZIsF3R3JlcDsjKnjN19hKPmzJFoE5d5aDIbdSm7v+/m3NA1ZltcZ9dZmlQ==}
+  '@gamerstake/game-platform-sdk@1.0.7':
+    resolution: {integrity: sha512-M/8oNCWPWi9SV1SrL87IPrLpWDONGUt6ieisLhAU2G1DzUjBuvYosoYQeHzj4xuekyaqOGnNX4CDwGqeM0kSFQ==}
     peerDependencies:
       typescript: ^5.0.0
 
@@ -1045,7 +1045,7 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@gamerstake/game-platform-sdk@1.0.6(typescript@5.9.3)':
+  '@gamerstake/game-platform-sdk@1.0.7(typescript@5.9.3)':
     dependencies:
       typescript: 5.9.3
 

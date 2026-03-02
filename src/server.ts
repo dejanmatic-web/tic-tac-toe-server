@@ -609,6 +609,17 @@ io.on("connection", (socket: Socket) => {
                 }
             } catch (error: any) {
                 console.error("❌ Authentication failed:", error.message);
+                // Log network/API reachability hints (e.g. fetch failed on Render/Railway)
+                if (error.message?.includes("fetch failed") || error.cause) {
+                    const cause = error.cause ?? error;
+                    console.error(
+                        "   (Network/API unreachable - check ENVIRONMENT and platform API URL)",
+                    );
+                    console.error("   cause:", cause?.message ?? cause?.code ?? String(cause));
+                    if (cause?.code) {
+                        console.error("   code:", cause.code);
+                    }
+                }
                 socket.emit("auth_error", { message: error.message });
                 socket.disconnect();
             }
